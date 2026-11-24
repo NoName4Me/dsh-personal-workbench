@@ -6,7 +6,7 @@ const zh={
  manageHint:"组织个人工作台、模板和历史版本。",import:"导入",export:"导出",myBoards:"我的工作台",open:"打开",setDefault:"设为默认",delete:"删除",deleteConfirm:"删除此工作台及其本地数据？",
  newFromTemplate:"从模板创建",template_general:"通用工作台",template_project:"项目工作台",template_tools:"工具工作台",template_blank:"空白工作台",
  desc_general:"对话、常用能力与近期工作",desc_project:"工作区与任务状态",desc_tools:"常用工具与个人清单",desc_blank:"从简单 React 页面开始",
- preview:"交互预览",refreshPreview:"运行预览",previewHint:"运行草稿以预览；预览使用隔离数据，不会发起真实会话。",draft:"草稿",boardName:"工作台名称",changeRequest:"修改需求",changePlaceholder:"例如：新增一个月末倒计时组件",askAI:"在 DSH 中请 AI 修改",aiHandoff:"在 DSH 原生会话中发送预填需求，再复制 AI 返回的 TSX 代码到这里。当前不自动应用 AI 结果。",
+ preview:"交互预览",refreshPreview:"运行预览",previewHint:"运行草稿以预览；预览使用隔离数据，不会发起真实会话。",draft:"草稿",boardName:"工作台名称",changeRequest:"修改需求",changePlaceholder:"例如：新增一个月末倒计时组件",askAI:"在 DSH 中请 AI 修改",aiHandoff:"在 DSH 原生会话中发送预填需求，完成后返回这里，导入 AI 结果并运行预览。你也可以粘贴源码。",importAI:"导入 AI 最新结果",returnAI:"返回 AI 会话",invalidAI:"AI 未返回完整的默认导出 TSX 模块。",startup:"启动时打开个人工作台",
  source:"工作台源码（TSX）",pasteCode:"从剪贴板导入 AI 代码",versionLabel:"版本说明（可选）",history:"历史版本",live:"生效中",editVersion:"继续编辑",restore:"恢复生效",restoreDraft:"用该版本替换当前编辑草稿？",restoreConfirm:"将该快照设为生效版本？业务数据不会回滚。",
  confirmAction:"确认工作台操作",cancel:"取消",confirm:"确认",missingSession:"会话已不可用。",missingWorkspace:"工作区已不可用。"
 }
@@ -18,7 +18,7 @@ const en:Record<keyof typeof zh,string>={
  manageHint:"Organize your workbenches, templates and versions.",import:"Import",export:"Export",myBoards:"My workbenches",open:"Open",setDefault:"Set default",delete:"Delete",deleteConfirm:"Delete this workbench and its local data?",
  newFromTemplate:"Create from template",template_general:"General",template_project:"Projects",template_tools:"Tools",template_blank:"Blank",
  desc_general:"Conversations, quick actions and recent work",desc_project:"Workspaces and task status",desc_tools:"Quick tools and personal checklist",desc_blank:"Start from a simple React page",
- preview:"Interactive preview",refreshPreview:"Run preview",previewHint:"Run the draft to preview it with isolated data; no real sessions will be launched.",draft:"Draft",boardName:"Name",changeRequest:"Change request",changePlaceholder:"For example, add a countdown to month end",askAI:"Ask AI in DSH",aiHandoff:"Send the prepared request in DSH, then copy the returned TSX here. AI results are not applied automatically.",
+ preview:"Interactive preview",refreshPreview:"Run preview",previewHint:"Run the draft to preview it with isolated data; no real sessions will be launched.",draft:"Draft",boardName:"Name",changeRequest:"Change request",changePlaceholder:"For example, add a countdown to month end",askAI:"Ask AI in DSH",aiHandoff:"Send the prepared request in DSH, then return here to import the latest result and preview it. You can also paste source.",importAI:"Import latest AI result",returnAI:"Return to AI session",invalidAI:"AI did not return a complete default-export TSX module.",startup:"Open workbench at startup",
  source:"Workbench source (TSX)",pasteCode:"Import AI code from clipboard",versionLabel:"Version description (optional)",history:"Versions",live:"Published",editVersion:"Edit version",restore:"Restore",restoreDraft:"Replace the current draft with this version?",restoreConfirm:"Make this snapshot live? Business data will not be rolled back.",
  confirmAction:"Confirm workbench action",cancel:"Cancel",confirm:"Confirm",missingSession:"Session no longer available.",missingWorkspace:"Workspace no longer available."
 }

@@ -1,6 +1,6 @@
 {
   "name": "dsh-personal-workbench",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Personal workbench for DeepSeek Harness",
   "type": "module",
   "exports": {
@@ -32,7 +32,9 @@
         "@deepseek-ai/dsh-client-ui-sidebar",
         "@deepseek-ai/dsh-client-ui-workspace",
         "@deepseek-ai/dsh-client-locale",
-        "@deepseek-ai/dsh-client-ui-session-status"
+        "@deepseek-ai/dsh-client-ui-session-status",
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-ui-session"
       ]
     }
   },

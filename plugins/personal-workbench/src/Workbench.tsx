@@ -25,13 +25,18 @@ function download(name:string,text:string){
  const u=URL.createObjectURL(new Blob([text],{type:"application/json"}))
  const a=document.createElement("a");a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)
 }
-export function Workbench({useWorkspaces,useSessions,useSessionStatus,startSession,openSession,t}:WorkbenchProps){
+export function Workbench({useWorkspaces,useSessions,useSessionStatus,startSession,openSession,askAI,readAI,t}:WorkbenchProps){
  const [boot]=React.useState(()=>{try{const state=loadState(localStorage,initialState);return {state,error:""}}catch(e){return {state:initialState(),error:String(e)}}})
- const [state,setState]=React.useState(()=>({...boot.state,active:boot.state.defaultId}))
+ const [state,setState]=React.useState(()=>{try{const saved=sessionStorage.getItem("dsh-workbench:resume");if(saved&&boot.state.boards.some(b=>b.id===saved))return {...boot.state,active:saved}}catch{}return {...boot.state,active:boot.state.defaultId}})
  const current=React.useRef(state)
  const [error,setError]=React.useState(boot.error)
  const [storageBlocked,setStorageBlocked]=React.useState(!!boot.error)
- const [mode,setMode]=React.useState<Mode>("home")
+ const [mode,setMode]=React.useState<Mode>(()=>{try{return sessionStorage.getItem("dsh-workbench:resume")===state.active?"edit":"home"}catch{return "home"}})
+ const [aiSession,setAiSession]=React.useState(()=>{try{return sessionStorage.getItem("dsh-workbench:ai-session:"+state.active)??""}catch{return ""}})
+ const [aiBusy,setAiBusy]=React.useState(false)
+ const [startup,setStartup]=React.useState(()=>{try{return localStorage.getItem("dsh-workbench:startup")!=="off"}catch{return true}})
+ const aiAbort=React.useRef<AbortController|null>(null)
+ React.useEffect(()=>()=>aiAbort.current?.abort(),[])
  const [request,setRequest]=React.useState("")
  const [versionLabel,setVersionLabel]=React.useState("")
  const [title,setTitle]=React.useState("")
@@ -59,16 +64,18 @@ export function Workbench({useWorkspaces,useSessions,useSessionStatus,startSessi
  const live=published(board)
  const builtin=!!live&&isBuiltin(live.source)
  const canRead=builtin||grant===board.id+":"+live?.id
- const liveContext=canRead?context:{...NO_CONTEXT,locale:context.locale}
- const selectedWorkspace=workspaces.some(w=>w.workspaceId===aiWorkspace)?aiWorkspace:undefined
+ const liveContext=React.useMemo(()=>canRead?context:{...NO_CONTEXT,locale:context.locale},[canRead,context])
+ const selectedWorkspace=workspaces.some(w=>w.workspaceId===aiWorkspace)?aiWorkspace:workspaces[0]?.workspaceId
  function commit(fn:(s:State)=>State){
    if(storageBlocked){setError(t("storageBlocked"));return false}
    try{const next=fn(current.current);storeState(localStorage,next);current.current=next;setState(next);setError("");return true}catch(e){setError(String(e));return false}
  }
  function update(fn:(b:Board)=>Board){return commit(s=>replaceBoard(s,fn(s.boards.find(b=>b.id===s.active)!)))}
- function changeMode(next:Mode){setMode(next);setAction(null);setRuntimeError("");if(next==="edit"){setPreview(null);setPreviewStatus("loading");setRequest("");setVersionLabel("")}}
+ function changeMode(next:Mode){try{if(next==="edit"){sessionStorage.setItem("dsh-workbench:resume",current.current.active);setAiSession(sessionStorage.getItem("dsh-workbench:ai-session:"+current.current.active)??"")}else sessionStorage.removeItem("dsh-workbench:resume")}catch{}setMode(next);setAction(null);setRuntimeError("");if(next==="edit"){setPreview(null);setPreviewStatus("loading");setRequest("");setVersionLabel("")}}
  function select(id:string){if(commit(s=>({...s,active:id}))){setGrant("");changeMode("home")}}
  function create(template:string,name:string){if(commit(s=>{if(s.boards.length>=MAX_BOARDS)throw new Error(t("boardLimit"));const b=newBoard(name,template);return {...s,active:b.id,boards:[...s.boards,b]}}))changeMode("edit")}
+ async function launchAI(){if(!selectedWorkspace||!request.trim())return;setAiBusy(true);try{const boardId=board.id;await askAI(selectedWorkspace,aiPrompt(board.draft,request.trim()),sessionId=>{sessionStorage.setItem("dsh-workbench:resume",boardId);sessionStorage.setItem("dsh-workbench:ai-session:"+boardId,sessionId);setAiSession(sessionId)})}catch(e){setError(String(e))}finally{setAiBusy(false)}}
+ async function importAI(){if(!aiSession||aiBusy)return;setAiBusy(true);const controller=new AbortController();aiAbort.current?.abort();aiAbort.current=controller;const boardId=board.id;try{const text=await readAI(aiSession,controller.signal);if(controller.signal.aborted)return;const source=extractSource(text);compile(source);if(!/export\s+default\b/.test(source))throw new Error(t("invalidAI"));commit(s=>replaceBoard(s,{...s.boards.find(b=>b.id===boardId)!,draft:source}));setPreview(null)}catch(e){if(!controller.signal.aborted)setError(String(e))}finally{if(!controller.signal.aborted)setAiBusy(false)}}
  function runPreview(){try{compile(board.draft);setPreviewData({});setPreviewStatus("loading");setRuntimeError("");setPreview(p=>({source:board.draft,nonce:(p?.nonce??0)+1}))}catch(e){setRuntimeError(String(e));setPreviewStatus("error")}}
  function requestAction(a:Action){if(builtin){perform(a);return}setAction(a)}
  function perform(a:Action){try{if(a.type==="open"){if(!context.sessions.some(s=>s.id===a.id))throw new Error(t("missingSession"));openSession(a.id)}else{if(a.id&&!context.workspaces.some(w=>w.id===a.id))throw new Error(t("missingWorkspace"));if(a.prompt&&!context.workspaces.length)throw new Error(t("emptyPrompt"));startSession(a.id,a.prompt)}setAction(null)}catch(e){setError(String(e));setAction(null)}}
@@ -87,11 +94,11 @@ export function Workbench({useWorkspaces,useSessions,useSessionStatus,startSessi
  {mode==="home"&&<div className="wb-home">
    {!live?<div className="wb-content"><h1>{board.title}</h1><p className="wb-subtitle">{t("unpublished")}</p><Button className="mt-4" onClick={()=>changeMode("edit")}>{t("edit")}</Button></div>:<>
    {!builtin&&<div className="wb-permission"><span>{t("customNotice")}</span><Button size="sm" variant="outline" onClick={()=>{setAction(null);setGrant(canRead?"":board.id+":"+live.id)}}>{canRead?t("revoke"):t("grant")}</Button></div>}
-   <Sandbox key={board.id+":"+live.id+":"+String(canRead)} source={live.source} context={liveContext} data={board.data} preview={false} onSave={data=>update(b=>({...b,data}))} onStart={(id,prompt)=>requestAction({type:"start",id,prompt})} onOpen={id=>requestAction({type:"open",id})} onStatus={()=>{}}/>
+   <Sandbox key={board.id+":"+live.id+":"+String(canRead)} source={live.source} context={liveContext} data={board.data} preview={false} onSave={data=>{if(JSON.stringify(data)!==JSON.stringify(board.data))update(b=>({...b,data}))}} onStart={(id,prompt)=>requestAction({type:"start",id,prompt})} onOpen={id=>requestAction({type:"open",id})} onStatus={()=>{}}/>
    </>}
  </div>}
  {mode==="manage"&&<main className="wb-content wb-manage">
-   <div className="wb-heading"><div><h1>{t("manage")}</h1><p className="wb-subtitle">{t("manageHint")}</p></div><Button size="sm" variant="outline" onClick={()=>fileRef.current?.click()}><Upload/>{t("import")}</Button><input type="file" ref={fileRef} accept=".json,application/json" hidden onChange={e=>{const f=e.target.files?.[0];e.target.value="";if(f)void importFile(f)}}/></div>
+   <div className="wb-heading"><div><h1>{t("manage")}</h1><p className="wb-subtitle">{t("manageHint")}</p><label className="wb-setting"><input type="checkbox" checked={startup} onChange={e=>{try{localStorage.setItem("dsh-workbench:startup",e.target.checked?"on":"off");setStartup(e.target.checked)}catch(err){setError(String(err))}}}/>{t("startup")}</label></div><Button size="sm" variant="outline" onClick={()=>fileRef.current?.click()}><Upload/>{t("import")}</Button><input type="file" ref={fileRef} accept=".json,application/json" hidden onChange={e=>{const f=e.target.files?.[0];e.target.value="";if(f)void importFile(f)}}/></div>
    <section className="wb-section"><h2>{t("myBoards")}</h2>{state.boards.map(b=><div className="wb-board-row" key={b.id}><div className="wb-row-title"><strong>{b.title}</strong><small>{b.id===state.defaultId?t("defaultMark")+" · ":""}{published(b)?.label??t("unpublished")}</small></div><Button variant="ghost" size="sm" onClick={()=>select(b.id)}>{t("open")}</Button><Button variant="ghost" size="sm" onClick={()=>{if(commit(s=>({...s,active:b.id})))changeMode("edit")}}>{t("edit")}</Button><Button variant="ghost" size="sm" disabled={b.id===state.defaultId||!published(b)} onClick={()=>commit(s=>({...s,defaultId:b.id}))}>{t("setDefault")}</Button><Button variant="ghost" size="icon-sm" aria-label={t("export")} onClick={()=>download(b.title+".workbench.json",exportBoard(b))}><Download/></Button><Button variant="ghost" size="sm" onClick={()=>{if(window.confirm(t("deleteConfirm")))commit(s=>deleteBoard(s,b.id))}} disabled={state.boards.length<=1}>{t("delete")}</Button></div>)}</section>
    <section className="wb-section"><h2>{t("newFromTemplate")}</h2><div className="wb-template-grid">{TEMPLATES.map(template=><button className="wb-template" key={template.id} onClick={()=>create(template.source,t("template_"+template.id))}><span className="wb-template-icon">{template.id==="blank"?<Plus/>:<Code2/>}</span><strong>{t("template_"+template.id)}</strong><small>{t("desc_"+template.id)}</small></button>)}</div></section>
  </main>}
@@ -100,9 +107,10 @@ export function Workbench({useWorkspaces,useSessions,useSessionStatus,startSessi
    <section className="wb-editor-col"><div className="wb-sectionbar"><strong>{t("edit")}</strong><small>{t("draft")}</small></div>
    <label className="wb-field">{t("boardName")}<input value={board.title} maxLength={80} onChange={e=>update(b=>({...b,title:e.target.value}))}/></label>
    <label className="wb-field">{t("changeRequest")}<Textarea rows={3} value={request} onChange={e=>setRequest(e.target.value)} placeholder={t("changePlaceholder")}/></label>
-   <label className="wb-field">{t("workspace")}<select value={selectedWorkspace??""} onChange={e=>setAiWorkspace(e.target.value)}><option value="">{t("defaultWorkspace")}</option>{workspaces.map(w=><option key={w.workspaceId} value={w.workspaceId}>{w.title}</option>)}</select></label>
-   <Button size="sm" onClick={()=>{try{startSession(selectedWorkspace,aiPrompt(board.draft,request.trim()))}catch(e){setError(String(e))}}} disabled={!request.trim()||!workspaces.length}><WandSparkles/>{t("askAI")}</Button>
+   <label className="wb-field">{t("workspace")}<select value={selectedWorkspace??""} onChange={e=>setAiWorkspace(e.target.value)}>{workspaces.length===0&&<option value="">{t("emptyPrompt")}</option>}{workspaces.map(w=><option key={w.workspaceId} value={w.workspaceId}>{w.title}</option>)}</select></label>
+   <Button size="sm" onClick={()=>void launchAI()} disabled={!request.trim()||!workspaces.length||aiBusy}><WandSparkles/>{t("askAI")}</Button>
    <p className="wb-help">{t("aiHandoff")}</p>
+   {aiSession&&<div className="wb-inline"><Button variant="outline" size="sm" disabled={aiBusy} onClick={()=>void importAI()}>{t("importAI")}</Button><Button variant="ghost" size="sm" onClick={()=>openSession(aiSession)}>{t("returnAI")}</Button></div>}
    <label className="wb-field">{t("source")}<textarea className="wb-code" spellCheck={false} value={board.draft} maxLength={MAX_SOURCE} onChange={e=>{const value=e.target.value;update(b=>({...b,draft:value}))}} rows={12}/></label>
    <Button variant="outline" size="sm" onClick={async()=>{try{const source=extractSource(await navigator.clipboard.readText());compile(source);update(b=>({...b,draft:source}))}catch(e){setError(String(e))}}}>{t("pasteCode")}</Button>
    <label className="wb-field">{t("versionLabel")}<input value={versionLabel} onChange={e=>setVersionLabel(e.target.value)} maxLength={80}/></label>

@@ -34,15 +34,17 @@ export function Sandbox(props:Props){
   const notify=(state:"loading"|"ready"|"error",detail="")=>{setStatus(state);setMessage(detail);latest.current.onStatus(state,detail)}
   if(compiled.error){notify("error",compiled.error);return}
   notify("loading")
-  let initialized=false
-  const timeout=window.setTimeout(()=>{if(!initialized)notify("error","Runtime did not start. The host may block sandboxed documents.")},5000)
+  let initialized=false, rendered=false
+  const timeout=window.setTimeout(()=>{if(!rendered)notify("error","Runtime did not render. The host may block sandboxed documents.")},5000)
   const receive=(event:MessageEvent)=>{
    if(event.source!==frame.current?.contentWindow||event.origin!=="null")return
    const request=parseRequest(event.data,token);if(!request)return
    const p=latest.current
    if(request.type==="error"){notify("error",request.message);return}
-   if(request.type==="ready"){if(initialized)return;initialized=true;clearTimeout(timeout);send("init");notify("ready");return}
+   if(request.type==="ready"){if(initialized)return;initialized=true;send("init");return}
    if(!initialized)return
+   if(request.type==="rendered"){if(!rendered){rendered=true;clearTimeout(timeout);notify("ready")}return}
+   if(!rendered)return
    if(request.type==="save"){if(dataOK(request.value))p.onSave(request.value);else notify("error","Local data exceeds the size limit");return}
    if(p.preview)return
    if(request.type==="start"){if(request.workspaceId!==undefined&&!p.context.workspaces.some(w=>w.id===request.workspaceId))return;p.onStart(request.workspaceId,request.prompt)}

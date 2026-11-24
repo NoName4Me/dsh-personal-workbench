@@ -83,3 +83,6 @@
 .dsh-wb .wb-confirm-box p{white-space:pre-wrap;max-height:260px;overflow:auto;overflow-wrap:anywhere}
 .dsh-wb .wb-confirm-box .wb-toolbar-actions{justify-content:flex-end}
 @media(max-width:760px){.dsh-wb .wb-studio{display:flex;flex-direction:column;overflow:auto}.dsh-wb .wb-preview-col{height:480px;flex:none}.dsh-wb .wb-editor-col{border-left:0;border-top:1px solid var(--wb-border);overflow:visible;flex:none}.dsh-wb .wb-toolbar{padding-left:12px;padding-right:12px}}
+
+.dsh-wb .wb-setting{display:flex;gap:8px;align-items:center;margin-top:12px;font-size:13px;color:var(--wb-muted-fg)}
+.dsh-wb.wb-shell{position:relative}

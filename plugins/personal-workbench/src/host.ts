@@ -6,11 +6,14 @@ export interface SessionState { byId:Record<string,Session>; ids:readonly string
 export type UseSessions=<T>(select:(snapshot:SessionState)=>T)=>T
 export type Status={running?:boolean;pendingInteraction?:unknown;completionUnread?:boolean;completionFailed?:boolean}
 export type UseSessionStatus=<T>(select:(snapshot:ReadonlyMap<string,Status>)=>T)=>T
-export interface WorkbenchProps {useWorkspaces:UseWorkspaces;useSessions:UseSessions;useSessionStatus:UseSessionStatus;startSession:(id?:string,prompt?:string)=>void;openSession:(id:string)=>void;t:(key:string)=>string}
+export interface WorkbenchProps {useWorkspaces:UseWorkspaces;useSessions:UseSessions;useSessionStatus:UseSessionStatus;startSession:(id?:string,prompt?:string)=>void;openSession:(id:string)=>void;askAI:(workspaceId:string,prompt:string,onSession:(id:string)=>void)=>Promise<void>;readAI:(sessionId:string,signal:AbortSignal)=>Promise<string>;t:(key:string)=>string}
 export interface ClientContext {
  slots:{inject:(name:string,callback:()=>unknown)=>unknown;register:(options:Record<string,unknown>,component:unknown)=>unknown}
  effect:(callback:()=>unknown,label?:string)=>unknown
  locale:{register:(namespace:string,dictionaries:Record<string,Record<string,string>>)=>unknown;bind:(namespace:string)=>(key:string)=>string}
  layout:{selectPanel:(id:string)=>void}
- uiWorkspace:{startSession:(id?:string,options?:{prompt:string;whenDraftExists:"append"})=>void;openSession:(id:string)=>void}
+ uiWorkspace:{startSession:(id?:string,options?:{prompt:string;whenDraftExists:"append"})=>void;openSession:(id:string)=>void;openWorkspace:(id:string,beforeOpen:(id:string)=>void)=>Promise<void>}
+ sessions:{binding:(id:string)=>unknown}
+ conversation:{input:{requestDraftInitialization:(binding:unknown,options:{prompt:string;whenDraftExists:"append"})=>string}}
+ remote:{session:{events:(request:{address:{kind:"session";sessionId:string};maxMessages:number},signal:AbortSignal)=>Promise<{ok:boolean;value?:{records:readonly {event:{type:string;data:unknown}}[]};error?:{message?:string}} >}}
 }

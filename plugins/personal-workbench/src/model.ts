@@ -43,7 +43,7 @@ export function dataOK(x:unknown):x is Record<string,unknown>{if(!object(x))retu
 export function readState(value:unknown):State {
   if(!object(value)||value.schema!==1||!Array.isArray(value.boards)||!value.boards.length||value.boards.length>MAX_BOARDS)throw new Error("Invalid workbench store")
   const boards:Board[]=value.boards.map((b:unknown)=>{
-    if(!object(b)||!validId(b.id)||typeof b.title!=="string"||b.title.length>80||!sourceOK(b.draft)||!Array.isArray(b.versions)||b.versions.length>MAX_VERSIONS||!dataOK(b.data))throw new Error("Invalid workbench")
+    if(!object(b)||!validId(b.id)||typeof b.title!=="string"||b.title.length>80||typeof b.draft!=="string"||b.draft.length>MAX_SOURCE||!Array.isArray(b.versions)||b.versions.length>MAX_VERSIONS||!dataOK(b.data))throw new Error("Invalid workbench")
     const versions:Version[]=b.versions.map((v:unknown)=>{
       if(!object(v)||!validId(v.id)||!sourceOK(v.source)||typeof v.createdAt!=="number"||!Number.isFinite(v.createdAt)||typeof v.label!=="string"||v.label.length>80||!(v.parentId===null||validId(v.parentId)))throw new Error("Invalid snapshot")
       return {id:v.id,source:v.source,createdAt:v.createdAt,label:v.label,parentId:v.parentId}
