@@ -1,25 +1,14 @@
-// Narrow adapter for the public DSH client surfaces at dsh-v0.2.3-alpha.2.
-// Never import other plugins' private implementations.
-export interface Workspace { workspaceId: string; title?: string }
-export interface WorkspaceState { items: readonly Workspace[]; phase?: unknown }
-export type UseWorkspaces = <T>(select: (snapshot: WorkspaceState) => T) => T
-export interface WorkbenchProps {
-  useWorkspaces: UseWorkspaces
-  startSession: (id?: string, prompt?: string) => void
-  t: (key: string) => string
-}
+export interface Workspace { workspaceId:string; title?:string; sessionIds?:readonly string[] }
+export interface WorkspaceState { items:readonly Workspace[]; phase?:unknown; archivedSessionIds?:readonly string[] }
+export type UseWorkspaces=<T>(select:(snapshot:WorkspaceState)=>T)=>T
+export interface Session { id:string; title?:string; blank?:boolean; running?:boolean; pendingInteraction?:unknown; completed?:unknown; updatedAt?:number; runningSubagentCount?:number; retainedBy?:{mainView?:number} }
+export interface SessionState { byId:Record<string,Session>; ids:readonly string[]; phase?:unknown }
+export type UseSessions=<T>(select:(snapshot:SessionState)=>T)=>T
+export interface WorkbenchProps {useWorkspaces:UseWorkspaces;useSessions:UseSessions;startSession:(id?:string,prompt?:string)=>void;openSession:(id:string)=>void;t:(key:string)=>string}
 export interface ClientContext {
-  slots: {
-    inject: (name: string, callback: () => unknown) => unknown
-    register: (options: Record<string, unknown>, component: unknown) => unknown
-  }
-  effect: (callback: () => unknown, label?: string) => unknown
-  locale: {
-    register: (namespace: string, dictionaries: Record<string, Record<string,string>>) => unknown
-    bind: (namespace: string) => (key: string) => string
-  }
-  layout: { selectPanel: (id: string) => void }
-  uiWorkspace: {
-    startSession: (id?: string, options?: {prompt: string; whenDraftExists: 'append'}) => void
-  }
+ slots:{inject:(name:string,callback:()=>unknown)=>unknown;register:(options:Record<string,unknown>,component:unknown)=>unknown}
+ effect:(callback:()=>unknown,label?:string)=>unknown
+ locale:{register:(namespace:string,dictionaries:Record<string,Record<string,string>>)=>unknown;bind:(namespace:string)=>(key:string)=>string}
+ layout:{selectPanel:(id:string)=>void}
+ uiWorkspace:{startSession:(id?:string,options?:{prompt:string;whenDraftExists:"append"})=>void;openSession:(id:string)=>void}
 }

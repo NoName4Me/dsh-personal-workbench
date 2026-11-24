@@ -1,6 +1,6 @@
 {
   "name": "dsh-personal-workbench",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Personal workbench for DeepSeek Harness",
   "type": "module",
   "exports": {
@@ -14,7 +14,8 @@
     "cordis.patch.yml",
     "icon.svg",
     "README.md",
-    "THIRD_PARTY.md"
+    "THIRD_PARTY.md",
+    "skills"
   ],
   "engines": {
     "dsh": "0.2.3-alpha.2"
@@ -56,6 +57,7 @@
     "react-dom": "18.3.1",
     "@types/react": "18.3.27",
     "@types/react-dom": "18.3.7",
-    "@types/node": "22.19.1"
+    "@types/node": "22.19.1",
+    "sucrase": "3.35.1"
   }
 }

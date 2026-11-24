@@ -24,7 +24,7 @@ jobs:
       - run: pnpm --filter dsh-personal-workbench test
       - run: pnpm --filter dsh-personal-workbench build
       - run: node --check plugins/personal-workbench/dist/client.js
-      - run: pnpm --filter dsh-personal-workbench pack --pack-destination ../../artifacts
+      - run: pnpm --filter dsh-personal-workbench pack --pack-destination "${{ github.workspace }}/artifacts"
       - uses: actions/upload-artifact@v4
         with:
           name: workbench-${{ matrix.os }}
