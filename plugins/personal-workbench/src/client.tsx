@@ -13,7 +13,7 @@ export function apply(ctx: ClientContext) {
   const t=ctx.locale.bind(NS)
   ctx.slots.inject("main",()=>ctx.slots.register({
     name:"main", key:PANEL_ID, locale:NS,
-    inject:()=>({startSession:(id?:string,prompt?:string)=>ctx.uiWorkspace.startSession(id,prompt?{prompt,whenDraftExists:"keep"}:undefined)})
+    inject:()=>({startSession:(id?:string,prompt?:string)=>ctx.uiWorkspace.startSession(id,prompt?{prompt,whenDraftExists:"append"}:undefined)})
   }, (props: React.ComponentProps<typeof Workbench>)=><><style>{css}</style><Workbench {...props}/></>))
   ctx.slots.inject("sidebar.panellist",()=>ctx.slots.register({
     name:"sidebar.panellist", id:PANEL_ID, order:-100, label:()=>t("panel"), locale:NS

@@ -9,7 +9,7 @@ process.chdir(root)
 await mkdir("dist",{recursive:true})
 const output="dist/.tailwind.css"
 // Tailwind CLI invoked through the current Node, avoiding shell-specific Windows syntax.
-const cli=fileURLToPath(import.meta.resolve("@tailwindcss/cli/package.json"))
+const cli=resolve(root,"node_modules/@tailwindcss/cli/package.json")
 const manifest=JSON.parse(await readFile(cli,"utf8"))
 const bin=typeof manifest.bin==="string"?manifest.bin:manifest.bin.tailwindcss
 const result=spawnSync(process.execPath,[resolve(dirname(cli),bin),"-i","src/styles.css","-o",output,"--minify"],{stdio:"inherit"})

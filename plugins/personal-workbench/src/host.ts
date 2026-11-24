@@ -1,6 +1,6 @@
 // Narrow adapter for the public DSH client surfaces at dsh-v0.2.3-alpha.2.
 // Never import other plugins' private implementations.
-export interface Workspace { id: string; title?: string }
+export interface Workspace { workspaceId: string; title?: string }
 export interface WorkspaceState { items: readonly Workspace[]; phase?: unknown }
 export type UseWorkspaces = <T>(select: (snapshot: WorkspaceState) => T) => T
 export interface WorkbenchProps {
@@ -20,6 +20,6 @@ export interface ClientContext {
   }
   layout: { selectPanel: (id: string) => void }
   uiWorkspace: {
-    startSession: (id?: string, options?: {prompt: string; whenDraftExists: 'keep'}) => void
+    startSession: (id?: string, options?: {prompt: string; whenDraftExists: 'append'}) => void
   }
 }
