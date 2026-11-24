@@ -1,6 +1,6 @@
 {
   "name": "dsh-personal-workbench",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Personal workbench for DeepSeek Harness",
   "type": "module",
   "exports": {
@@ -42,7 +42,8 @@
     "build": "node scripts/build.mjs",
     "check": "tsc --noEmit",
     "test": "node --test tests/*.test.mjs",
-    "prepack": "pnpm build"
+    "prepack": "pnpm build",
+    "test:browser": "playwright test -c tests/playwright.config.mjs"
   },
   "devDependencies": {
     "class-variance-authority": "0.7.1",
@@ -61,6 +62,7 @@
     "@types/react": "18.3.27",
     "@types/react-dom": "18.3.7",
     "@types/node": "22.19.1",
-    "sucrase": "3.35.1"
+    "sucrase": "3.35.1",
+    "@playwright/test": "1.56.1"
   }
 }

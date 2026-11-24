@@ -24,6 +24,10 @@ jobs:
       - run: pnpm --filter dsh-personal-workbench test
       - run: pnpm --filter dsh-personal-workbench build
       - run: node --check plugins/personal-workbench/dist/client.js
+      - if: runner.os == 'Linux'
+        run: pnpm --filter dsh-personal-workbench exec playwright install chromium --with-deps
+      - if: runner.os == 'Linux'
+        run: pnpm --filter dsh-personal-workbench test:browser
       - run: pnpm --filter dsh-personal-workbench pack --pack-destination "${{ github.workspace }}/artifacts"
       - uses: actions/upload-artifact@v4
         with:

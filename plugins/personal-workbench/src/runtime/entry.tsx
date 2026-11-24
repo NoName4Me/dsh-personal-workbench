@@ -28,4 +28,6 @@ export function boot(token:string,load:(require:(name:string)=>unknown,module:{e
  }
  window.addEventListener("message",e=>{if(e.source!==parent||typeof e.data!=="object"||e.data===null||e.data.token!==token)return;const m=e.data as Incoming;if(m.type!=="init"&&m.type!=="update")return;if(!current||m.type==="init")data=m.data;current=m;render()})
  send({type:"ready"})
+ const timer=window.setInterval(()=>{if(current){clearInterval(timer);return}send({type:"ready"})},300)
+ window.setTimeout(()=>clearInterval(timer),5000)
 }

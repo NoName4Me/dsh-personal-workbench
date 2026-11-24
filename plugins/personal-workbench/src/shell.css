@@ -1,3 +1,4 @@
+@layer theme,base,components,utilities;
 /* Deliberately scoped: the DSH host owns global styling and window chrome. */
 .dsh-wb {
   --wb-bg: var(--dsw-alias-bg-layer-1, Canvas);
@@ -10,7 +11,7 @@
   height:100%; min-height:0; overflow:auto; color:var(--wb-fg); background:var(--wb-bg);
   font:inherit; box-sizing:border-box; text-align:left;
 }
-.dsh-wb *, .dsh-wb *::before, .dsh-wb *::after {box-sizing:border-box; border-style:solid; border-width:0; border-color:var(--wb-border)}
+@layer base {.dsh-wb *, .dsh-wb *::before, .dsh-wb *::after {box-sizing:border-box; border-style:solid; border-width:0; border-color:var(--wb-border)}}
 .dsh-wb button,.dsh-wb select,.dsh-wb textarea {font-family:inherit}
 .dsh-wb button {cursor:pointer}
 .dsh-wb button:disabled {cursor:default}
@@ -86,3 +87,12 @@
 
 .dsh-wb .wb-setting{display:flex;gap:8px;align-items:center;margin-top:12px;font-size:13px;color:var(--wb-muted-fg)}
 .dsh-wb.wb-shell{position:relative}
+
+.dsh-wb .wb-content{width:min(100%,800px);box-sizing:border-box}
+.dsh-wb .wb-toolbar{padding-inline-start:max(20px,var(--dsh-frame-leading-clearance,0px))}
+.dsh-wb button:focus-visible,.dsh-wb select:focus-visible,.dsh-wb input:focus-visible,.dsh-wb textarea:focus-visible{outline:2px solid var(--wb-primary);outline-offset:2px}
+.dsh-wb .wb-confirm-box h2{margin-bottom:12px}
+.dsh-wb .wb-confirm-box p{font-size:13px;line-height:1.6}
+.dsh-wb .wb-board-select select{font-size:13px}
+.dsh-wb .wb-runtime-status button{margin-left:8px;color:var(--wb-primary);text-decoration:underline}
+@media(prefers-reduced-motion:reduce){.dsh-wb *{scroll-behavior:auto!important;transition:none!important}}
