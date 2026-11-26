@@ -22,8 +22,8 @@ type Mode="home"|"manage"|"edit"
 type Action={type:"start";id?:string;prompt?:string}|{type:"open";id:string}
 function aiPrompt(source:string,request:string){
  return [
- "你正在修改 DSH Personal Workbench 的 React/TSX 页面。请遵循 workbench-dev Skill。只输出完整 TSX 源码（一个代码块），不要创建插件、读写文件或执行命令。",
- "可导入 react 和 @workbench/ui。后者提供 Page, Section, Panel, Stack, Button, Textarea, Input, Checkbox, ChoiceSelect, Tabs, TabsList, TabsTrigger, TabsContent, Dialog, DialogContent, DialogTitle, DialogDescription, DialogTrigger, Field, Composer, QuickActions, Workspaces, RecentWork, Checklist, GeneralPage, ProjectPage, ToolsPage, useWorkbench, useStored。",
+ "你正在修改 DSH Personal Workbench 的 React/TSX 页面。请遵循 workbench-dev Skill。每次修改都输出完整 TSX 源码（一个代码块），可以在代码块之外简短说明修改。后续我会在同一会话继续提出修改需求，不要创建插件、读写文件或执行命令。",
+ "可导入 react 和 @workbench/ui。后者提供 Page, Section, Panel, Stack, Button, Textarea, Input, Checkbox, ShortcutLibrary, Suggestions, ProjectManager, ChoiceSelect, Tabs, TabsList, TabsTrigger, TabsContent, Dialog, DialogContent, DialogTitle, DialogDescription, DialogTrigger, Field, Composer, QuickActions, Workspaces, RecentWork, Checklist, GeneralPage, ProjectPage, ToolsPage, useWorkbench, useStored。",
  "必须 export default function App()。useWorkbench() 返回 workspaces、sessions、data、save(patch)、start(workspaceId?,prompt?)、open(sessionId)、preview、locale。useStored(key,initial) 返回 [value,setValue]。不使用网络、外部依赖或宿主 API。默认继承 DSH 主题，优先使用成熟内置组件（选择器、弹窗、复选框不要自行实现）。用户指定的风格可以覆盖默认样式，使用 React style 或页面局部 CSS；运行时没有动态 Tailwind 编译。保存业务数据时使用 useStored，避免存储敏感信息。",
  "当前源码：",source,"修改要求：",request
  ].join("\n\n")
@@ -32,18 +32,20 @@ function download(name:string,text:string){
  const u=URL.createObjectURL(new Blob([text],{type:"application/json"}))
  const a=document.createElement("a");a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)
 }
-export function Workbench({useWorkspaces,useSessions,useSessionStatus=useNoSessionStatus as UseSessionStatus,startSession,openSession,askAI,readAI,t}:WorkbenchProps){
+export function Workbench({useWorkspaces,useSessions,useSessionStatus=useNoSessionStatus as UseSessionStatus,startSession,openSession,createStudio,renderStudio,readAI,t}:WorkbenchProps){
  const [boot]=React.useState(()=>{try{const state=loadState(localStorage,initialState);return {state,error:""}}catch(e){return {state:initialState(),error:String(e)}}})
- const [state,setState]=React.useState(()=>{try{const saved=sessionStorage.getItem("dsh-workbench:resume");if(saved&&boot.state.boards.some(b=>b.id===saved))return {...boot.state,active:saved}}catch{}return {...boot.state,active:boot.state.defaultId}})
+ const [state,setState]=React.useState(()=>{try{const saved=sessionStorage.getItem("dsh-workbench:resume")??sessionStorage.getItem("dsh-workbench:return-board");sessionStorage.removeItem("dsh-workbench:return-board");if(saved&&boot.state.boards.some(b=>b.id===saved))return {...boot.state,active:saved}}catch{}return {...boot.state,active:boot.state.defaultId}})
  const current=React.useRef(state)
  const [error,setError]=React.useState(boot.error)
  const [storageBlocked,setStorageBlocked]=React.useState(!!boot.error)
  const [mode,setMode]=React.useState<Mode>(()=>{try{return sessionStorage.getItem("dsh-workbench:resume")===state.active?"edit":"home"}catch{return "home"}})
- const [aiSession,setAiSession]=React.useState(()=>{try{return sessionStorage.getItem("dsh-workbench:ai-session:"+state.active)??""}catch{return ""}})
+ const [aiSession,setAiSession]=React.useState(()=>{try{return localStorage.getItem("dsh-workbench:studio-session:"+state.active)??""}catch{return ""}})
+ const [initialPrompt,setInitialPrompt]=React.useState<string|undefined>()
+ const [aiNotice,setAiNotice]=React.useState("")
+ const aiGeneration=React.useRef(0)
  const [aiBusy,setAiBusy]=React.useState(false)
  const [startup,setStartup]=React.useState(()=>{try{return localStorage.getItem("dsh-workbench:startup")!=="off"}catch{return true}})
- const aiAbort=React.useRef<AbortController|null>(null)
- React.useEffect(()=>()=>aiAbort.current?.abort(),[])
+ React.useEffect(()=>()=>{aiGeneration.current++},[])
  const [request,setRequest]=React.useState("")
  const [versionLabel,setVersionLabel]=React.useState("")
  const [title,setTitle]=React.useState("")
@@ -74,21 +76,62 @@ export function Workbench({useWorkspaces,useSessions,useSessionStatus=useNoSessi
  const builtin=!!live&&isBuiltin(live.source)
  const canRead=builtin||grant===board.id+":"+live?.id
  const liveContext=React.useMemo(()=>canRead?context:{...NO_CONTEXT,locale:context.locale},[canRead,context])
- const previewContext=React.useMemo(()=>({...NO_CONTEXT,locale:context.locale}),[context.locale])
+ const previewContext=React.useMemo(()=>isBuiltin(board.draft)?context:{...NO_CONTEXT,locale:context.locale},[board.draft,context])
  const selectedWorkspace=workspaces.some(w=>w.workspaceId===aiWorkspace)?aiWorkspace:workspaces[0]?.workspaceId
  function commit(fn:(s:State)=>State){
    if(storageBlocked){setError(t("storageBlocked"));return false}
    try{const next=fn(current.current);storeState(localStorage,next);current.current=next;setState(next);setError("");return true}catch(e){setError(String(e));return false}
  }
  function update(fn:(b:Board)=>Board){return commit(s=>replaceBoard(s,fn(s.boards.find(b=>b.id===s.active)!)))}
- function changeMode(next:Mode){aiAbort.current?.abort();setAiBusy(false);try{if(next==="edit"){sessionStorage.setItem("dsh-workbench:resume",current.current.active);setAiSession(sessionStorage.getItem("dsh-workbench:ai-session:"+current.current.active)??"")}else sessionStorage.removeItem("dsh-workbench:resume")}catch{}setMode(next);setAction(null);setRuntimeError("");if(next==="edit"){setPreview(null);setPreviewStatus("loading");setRequest("");setVersionLabel("")}}
+ function changeMode(next:Mode){aiGeneration.current++;setAiBusy(false);setInitialPrompt(undefined);setAiNotice("");try{if(next==="edit"){sessionStorage.setItem("dsh-workbench:resume",current.current.active);setAiSession(localStorage.getItem("dsh-workbench:studio-session:"+current.current.active)??"")}else sessionStorage.removeItem("dsh-workbench:resume")}catch{}setMode(next);setAction(null);setRuntimeError("");if(next==="edit"){setPreview(null);setPreviewStatus("loading");setRequest("");setVersionLabel("")}}
  function select(id:string){if(commit(s=>({...s,active:id}))){setGrant("");changeMode("home")}}
  function create(template:string,name:string){if(commit(s=>{if(s.boards.length>=MAX_BOARDS)throw new Error(t("boardLimit"));const b=newBoard(name,template);return {...s,active:b.id,boards:[...s.boards,b]}}))changeMode("edit")}
- async function launchAI(){if(!selectedWorkspace||!request.trim())return;setAiBusy(true);try{const boardId=board.id;await askAI(selectedWorkspace,aiPrompt(board.draft,request.trim()),sessionId=>{sessionStorage.setItem("dsh-workbench:resume",boardId);sessionStorage.setItem("dsh-workbench:ai-session:"+boardId,sessionId);setAiSession(sessionId)})}catch(e){setError(String(e))}finally{setAiBusy(false)}}
- async function importAI(){if(!aiSession||aiBusy)return;if(sessions.byId[aiSession]?.running){setError(t("aiRunning"));return;}setAiBusy(true);const controller=new AbortController();aiAbort.current?.abort();aiAbort.current=controller;const boardId=board.id;try{const text=await readAI(aiSession,controller.signal);if(controller.signal.aborted)return;const source=extractSource(text);compile(source);if(!/export\s+default\b/.test(source))throw new Error(t("invalidAI"));commit(s=>replaceBoard(s,{...s.boards.find(b=>b.id===boardId)!,draft:source}));setPreview(null)}catch(e){if(!controller.signal.aborted)setError(String(e))}finally{if(!controller.signal.aborted)setAiBusy(false)}}
- function runPreview(){try{compile(board.draft);setPreviewData({});setPreviewStatus("loading");setRuntimeError("");setPreview(p=>({source:board.draft,nonce:(p?.nonce??0)+1}))}catch(e){setRuntimeError(String(e));setPreviewStatus("error")}}
+ async function launchAI(){if(!selectedWorkspace||!request.trim()||aiBusy)return;const generation=++aiGeneration.current,boardId=board.id;setAiBusy(true);try{const sessionId=await createStudio(selectedWorkspace);if(generation!==aiGeneration.current)return;localStorage.setItem("dsh-workbench:studio-session:"+boardId,sessionId);setInitialPrompt(aiPrompt(board.draft,request.trim()));setAiSession(sessionId);setAiNotice(t("studioDraftReady"))}catch(e){if(generation===aiGeneration.current)setError(String(e))}finally{if(generation===aiGeneration.current)setAiBusy(false)}}
+ function resetStudio(){aiGeneration.current++;setAiBusy(false);setInitialPrompt(undefined);setAiNotice("");try{localStorage.removeItem("dsh-workbench:studio-session:"+board.id)}catch{}setAiSession("")}
+
+ // Poll only the dedicated customization Session. Ordinary conversations are
+ // never read as generated workbench code. Completed responses update drafts,
+ // not published versions. Abort stale reads on mode/board/session change.
+ const aiRunning=!!aiSession&&(!!sessions.byId[aiSession]?.running||!!statuses.get(aiSession)?.running)
+ const aiPending=!!aiSession&&!!statuses.get(aiSession)?.pendingInteraction
+ const latestState=React.useRef({running:aiRunning,pending:aiPending});latestState.current={running:aiRunning,pending:aiPending}
+ React.useEffect(()=>{
+  if(mode!=="edit"||!aiSession)return
+  const controller=new AbortController(),boardId=board.id,sessionId=aiSession
+  let busy=false,last=""
+  const storageKey="dsh-workbench:studio-result:"+sessionId
+  try{last=localStorage.getItem(storageKey)??""}catch{}
+  const poll=async()=>{
+   if(busy||controller.signal.aborted||latestState.current.running||latestState.current.pending)return
+   busy=true
+   try{
+    const text=await readAI(sessionId,controller.signal)
+    if(controller.signal.aborted||latestState.current.running||latestState.current.pending)return
+    // Store a small response fingerprint to avoid re-applying an old result
+    // when the user returns to the editor or restores a historical snapshot.
+    let hash=2166136261
+    for(let i=0;i<text.length;i++)hash=Math.imul(hash^text.charCodeAt(i),16777619)
+    const fingerprint=text.length+":"+String(hash>>>0)
+    if(fingerprint===last)return
+    const source=extractSource(text)
+    if(!/^\s*(?:import\b|export\b|\/[/*]|const\b|function\b)/.test(source)||!/\bexport\s+default\b/.test(source))return
+    try{compile(source)}catch(e){last=fingerprint;setAiNotice(t("studioCompileError")+": "+String(e));return}
+    if(commit(s=>{const target=s.boards.find(b=>b.id===boardId);return target?replaceBoard(s,{...target,draft:source}):s})){
+     last=fingerprint
+     try{localStorage.setItem(storageKey,fingerprint)}catch{}
+     setAiNotice(t("studioApplied"))
+    }
+   }catch{/* No finished assistant answer is normal while starting a conversation. */}
+   finally{busy=false}
+  }
+  void poll()
+  const timer=window.setInterval(()=>void poll(),1400)
+  return ()=>{controller.abort();window.clearInterval(timer)}
+ },[mode,board.id,aiSession,readAI])
+ function runPreview(){try{compile(board.draft);setPreviewData(isBuiltin(board.draft)?structuredClone(board.data):{});setPreviewStatus("loading");setRuntimeError("");setPreview(p=>({source:board.draft,nonce:(p?.nonce??0)+1}))}catch(e){setRuntimeError(String(e));setPreviewStatus("error")}}
+ React.useEffect(()=>{if(mode==="edit")runPreview()},[mode,board.id,board.draft])
  function requestAction(a:Action){if(builtin){perform(a);return}setAction(a)}
- function perform(a:Action){try{if(a.type==="open"){if(!context.sessions.some(s=>s.id===a.id))throw new Error(t("missingSession"));openSession(a.id)}else{if(a.id&&!context.workspaces.some(w=>w.id===a.id))throw new Error(t("missingWorkspace"));if(a.prompt&&!context.workspaces.length)throw new Error(t("emptyPrompt"));startSession(a.id,a.prompt)}setAction(null)}catch(e){setError(String(e));setAction(null)}}
+ function perform(a:Action){try{sessionStorage.setItem("dsh-workbench:return-board",board.id);if(a.type==="open"){if(!context.sessions.some(s=>s.id===a.id))throw new Error(t("missingSession"));openSession(a.id)}else{if(a.id&&!context.workspaces.some(w=>w.id===a.id))throw new Error(t("missingWorkspace"));if(a.prompt&&!context.workspaces.length)throw new Error(t("emptyPrompt"));startSession(a.id,a.prompt)}setAction(null)}catch(e){setError(String(e));setAction(null)}}
  async function importFile(file:File){try{if(file.size>MAX_SOURCE*6)throw new Error(t("fileTooLarge"));const b=importBoard(await file.text());if(commit(s=>{if(s.boards.length>=MAX_BOARDS)throw new Error(t("boardLimit"));return {...s,active:b.id,boards:[...s.boards,b]}}))changeMode("edit")}catch(e){setError(String(e))}}
  const previewMatches=preview?.source===board.draft&&previewStatus==="ready"&&!runtimeError&&!!board.title.trim()
  const setAsDefault=()=>commit(s=>({...s,defaultId:board.id}))
@@ -114,18 +157,13 @@ export function Workbench({useWorkspaces,useSessions,useSessionStatus=useNoSessi
  </main>}
  {mode==="edit"&&<div className="wb-studio">
    <section className="wb-preview-col"><div className="wb-sectionbar"><strong>{t("preview")}</strong><Button size="sm" variant="outline" onClick={runPreview}>{t("refreshPreview")}</Button></div>{runtimeError&&<div className="wb-notice" role="alert">{runtimeError}</div>}{preview?<Sandbox key={board.id+":"+preview.nonce} source={preview.source} context={previewContext} data={previewData} preview onSave={setPreviewData} onStart={()=>{}} onOpen={()=>{}} onStatus={(status,detail)=>{setPreviewStatus(status);setRuntimeError(detail??"")}}/>:<div className="wb-placeholder">{t("previewHint")}</div>}</section>
-   <section className="wb-editor-col"><div className="wb-sectionbar"><strong>{t("edit")}</strong><small>{t("draft")}</small></div>
-   <label className="wb-field">{t("boardName")}<Input value={board.title} maxLength={80} onChange={e=>update(b=>({...b,title:e.target.value}))}/></label>
-   <label className="wb-field">{t("changeRequest")}<Textarea rows={3} value={request} onChange={e=>setRequest(e.target.value)} placeholder={t("changePlaceholder")}/></label>
-   <label className="wb-field">{t("workspace")}<ChoiceSelect label={t("workspace")} value={selectedWorkspace??""} onChange={setAiWorkspace} disabled={!workspaces.length} placeholder={t("emptyPrompt")} options={workspaces.map(w=>({value:w.workspaceId,label:w.title||t("unnamed")}))} className="wb-editor-select"/></label>
-   <Button size="sm" onClick={()=>void launchAI()} disabled={!request.trim()||!workspaces.length||aiBusy}><WandSparkles/>{t("askAI")}</Button>
-   <p className="wb-help">{t("aiHandoff")}</p>
-   {aiSession&&<div className="wb-inline"><Button variant="outline" size="sm" disabled={aiBusy} onClick={()=>void importAI()}>{t("importAI")}</Button><Button variant="ghost" size="sm" onClick={()=>openSession(aiSession)}>{t("returnAI")}</Button></div>}
-   <label className="wb-field">{t("source")}<Textarea className="wb-code" spellCheck={false} value={board.draft} maxLength={MAX_SOURCE} onChange={e=>{const value=e.target.value;update(b=>({...b,draft:value}))}} rows={12}/></label>
-   <Button variant="outline" size="sm" onClick={async()=>{try{const source=extractSource(await navigator.clipboard.readText());compile(source);update(b=>({...b,draft:source}))}catch(e){setError(String(e))}}}>{t("pasteCode")}</Button>
-   <label className="wb-field">{t("versionLabel")}<Input value={versionLabel} onChange={e=>setVersionLabel(e.target.value)} maxLength={80}/></label>
-   <div className="wb-sectionbar"><strong><History size={16}/> {t("history")}</strong>{live&&<Button size="sm" variant="ghost" onClick={setAsDefault} disabled={state.defaultId===board.id}>{t("setDefault")}</Button>}</div>
-   {[...board.versions].reverse().map(v=><div key={v.id} className="wb-version"><div className="wb-row-title"><strong>{v.label}{v.id===board.published?" · "+t("live"):""}</strong><small>{new Date(v.createdAt).toLocaleString()}</small></div><Button size="sm" variant="ghost" onClick={()=>setConfirmation({description:t("restoreDraft"),run:()=>{update(b=>editVersion(b,v.id))}})}>{t("editVersion")}</Button><Button size="sm" variant="ghost" disabled={v.id===board.published} onClick={()=>setConfirmation({description:t("restoreConfirm"),run:()=>{if(update(b=>editVersion(b,v.id))){setPreviewData({});setPreviewStatus("loading");setRuntimeError("");setPreview(p=>({source:v.source,nonce:(p?.nonce??0)+1}))}}})}>{t("restore")}</Button></div>)}
+   <section className="wb-editor-col wb-chat-editor">
+    <div className="wb-sectionbar wb-chat-heading"><strong><WandSparkles size={16}/>{t("studioTitle")}</strong><small>{t("draft")}</small>{aiSession&&<Button size="xs" variant="ghost" onClick={()=>setConfirmation({description:t("newStudioConfirm"),run:resetStudio})}>{t("newStudio")}</Button>}</div>
+    <details className="wb-studio-settings"><summary>{t("boardSettings")}</summary><div className="wb-stack"><label className="wb-field">{t("boardName")}<Input value={board.title} maxLength={80} onChange={e=>update(b=>({...b,title:e.target.value}))}/></label><label className="wb-field">{t("versionLabel")}<Input value={versionLabel} onChange={e=>setVersionLabel(e.target.value)} maxLength={80}/></label><div className="wb-sectionbar"><strong><History size={16}/> {t("history")}</strong>{live&&<Button size="sm" variant="ghost" onClick={setAsDefault} disabled={state.defaultId===board.id}>{t("setDefault")}</Button>}</div>
+    {[...board.versions].reverse().map(v=><div key={v.id} className="wb-version"><div className="wb-row-title"><strong>{v.label}{v.id===board.published?" · "+t("live"):""}</strong><small>{new Date(v.createdAt).toLocaleString()}</small></div><Button size="sm" variant="ghost" onClick={()=>setConfirmation({description:t("restoreDraft"),run:()=>{if(update(b=>editVersion(b,v.id)))resetStudio()}})}>{t("editVersion")}</Button></div>)}</div></details>
+    {aiNotice&&<div className="wb-ai-notice" role="status">{aiNotice}<Button size="icon-xs" variant="ghost" aria-label={t("dismiss")} onClick={()=>setAiNotice("")}>×</Button></div>}
+    {aiSession?<div className="wb-studio-conversation">{renderStudio({sessionId:aiSession,initialPrompt,onError:setError})}</div>:<div className="wb-studio-intro"><h2>{t("studioIntro")}</h2><p className="wb-help">{t("studioHint")}</p><div className="wb-field">{t("workspace")}<ChoiceSelect label={t("workspace")} value={selectedWorkspace??""} onChange={setAiWorkspace} disabled={!workspaces.length} placeholder={t("emptyPrompt")} options={workspaces.map(w=>({value:w.workspaceId,label:w.title||t("unnamed")}))} className="wb-editor-select"/></div><label className="wb-field">{t("changeRequest")}<Textarea rows={4} value={request} onChange={e=>setRequest(e.target.value)} placeholder={t("changePlaceholder")}/></label><Button size="sm" onClick={()=>void launchAI()} disabled={!request.trim()||!workspaces.length||aiBusy}><WandSparkles/>{t("startStudio")}</Button></div>}
+
    </section>
  </div>}
  <ConfirmDialog open={!!action||!!confirmation} title={t("confirmAction")} description={confirmation?.description??(action?.type==="open"?context.sessions.find(s=>s.id===action.id)?.title??"":action?.prompt||t("start"))} cancel={t("cancel")} confirm={t("confirm")} destructive={confirmation?.destructive} onCancel={()=>{setAction(null);setConfirmation(null)}} onConfirm={()=>{if(confirmation){setConfirmation(null);confirmation.run()}else if(action)perform(action)}}/>

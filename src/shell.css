@@ -243,3 +243,17 @@
 .dsh-wb .wb-template strong{margin-top:4px}
 .dsh-wb .wb-template small{line-height:1.45}
 @media(max-width:680px){.dsh-wb .wb-shortcut-grid,.dsh-wb .wb-pm-layout{grid-template-columns:minmax(0,1fr)}.dsh-wb .wb-pm-task{flex-wrap:wrap}.dsh-wb .wb-pm-metrics>div{padding-inline:8px}.dsh-wb .wb-pm-metrics span{font-size:11px}.dsh-wb .wb-pm-metrics strong{font-size:20px}}
+
+.dsh-wb .wb-chat-editor{padding:0;gap:0;overflow:hidden;min-width:0}
+.dsh-wb .wb-chat-heading{padding:12px 14px;border-bottom:1px solid var(--wb-border)}
+.dsh-wb .wb-chat-heading>small{margin-left:auto}
+.dsh-wb .wb-studio-settings{padding:9px 14px;border-bottom:1px solid var(--wb-border);max-height:40%;overflow:auto}
+.dsh-wb .wb-studio-settings summary{cursor:pointer;color:var(--wb-muted-fg);font-size:12px}
+.dsh-wb .wb-studio-settings[open] summary{margin-bottom:10px}
+.dsh-wb .wb-ai-notice{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:7px 14px;font-size:12px;background:var(--wb-muted);overflow-wrap:anywhere}
+.dsh-wb .wb-studio-intro{padding:24px 16px;display:flex;flex-direction:column;gap:14px;overflow:auto}
+.dsh-wb .wb-studio-intro h2{font-size:17px;margin:0}
+.dsh-wb .wb-studio-conversation{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+.dsh-wb .wb-native-chat{height:100%;min-height:0;flex:1;display:flex;flex-direction:column;overflow:hidden}
+.dsh-wb .wb-native-chat-loading{flex:1;display:grid;place-items:center;color:var(--wb-muted-fg)}
+@media(max-width:760px){.dsh-wb .wb-chat-editor{min-height:540px;flex:none}.dsh-wb .wb-studio-conversation{min-height:480px}}
