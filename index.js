@@ -1,16 +1,13 @@
-import { readFileSync } from "node:fs"
 import { storeFor,visibleSources } from "./host/store.mjs"
-export const inject=["skills","connection","profileContext"]
+export const inject=["connection","profileContext"]
 const PATH="/api/personal-workbench"
 export function apply(ctx){
- const raw=readFileSync(new URL("./skills/workbench-dev/SKILL.md",import.meta.url),"utf8")
- ctx.skills.register({name:"workbench-dev",source:"runtime",description:"Develop and modify an offline Personal Workbench TSX page.",content:raw.replace(/^---[\s\S]*?---\s*/,"")})
  const store=storeFor(ctx)
  ctx.effect(()=>ctx.connection.fetch.register({
   path:PATH,methods:["GET","POST"],requestBody:"buffered",
   fetch:async request=>{
    try{
-    if(request.method==="GET"){const s=store.snapshot();for(const [id,rows] of Object.entries(s.recommendations)){const allowed=new Set(visibleSources(ctx,store,rows.map(x=>x.sessionId)).map(x=>x.id));s.recommendations[id]=rows.filter(x=>allowed.has(x.sessionId)).map(({generatedBy,...x})=>x)}const revision=new URL(request.url).searchParams.get("revision");if(revision!==null&&Number(revision)===s.revision){delete s.state;s.unchanged=true}return Response.json(s,{headers:{"cache-control":"no-store"}})}
+    if(request.method==="GET"){const s=store.snapshot();s.internalWorkspaceIds=(ctx.get("workspaceRegistry")?.list()??[]).filter(w=>w.path===store.cwd).map(w=>w.id);for(const [id,rows] of Object.entries(s.recommendations)){const allowed=new Set(visibleSources(ctx,store,rows.map(x=>x.sessionId)).map(x=>x.id));s.recommendations[id]=rows.filter(x=>allowed.has(x.sessionId)).map(({generatedBy,...x})=>x)}const revision=new URL(request.url).searchParams.get("revision");if(revision!==null&&Number(revision)===s.revision){delete s.state;s.unchanged=true}return Response.json(s,{headers:{"cache-control":"no-store"}})}
     if(!request.headers.get("content-type")?.startsWith("application/json"))return new Response("Expected JSON",{status:415})
     const text=await request.text()
     if(text.length>36_000_000)return new Response("Request too large",{status:413})

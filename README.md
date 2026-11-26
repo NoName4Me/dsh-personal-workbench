@@ -24,7 +24,7 @@ pnpm install
 pnpm dev
 ```
 
-`pnpm dev` 会构建 `dist/client.js`，把当前目录以 `link:` 方式安装到隔离的 `workbench-dev` profile，并启动 Web UI。首次运行会从现有 `web` profile 复制模型与 patch 配置，不修改原 `web` profile。默认端口 `5273`；`src/**` 改动会自动重建，已打开的页面通过 DSH client HMR 重载插件。
+`pnpm dev` 会构建 `dist/client.js` 与 `dist/host-model.js`，把当前目录以 `link:` 方式安装到隔离的 `workbench-dev` profile，并启动 Web UI。首次运行会从现有 `web` profile 复制模型与 patch 配置，不修改原 `web` profile。默认端口 `5273`；`src/**` 改动会自动重建，已打开的页面通过 DSH client HMR 重载插件。
 
 常用参数：
 
@@ -39,7 +39,7 @@ pnpm dev -- --no-watch        # 只构建并启动
 
 ## 安装到 DSH
 
-构建产物为 `dist/client.js`。在 DSH 插件管理界面加载本地插件目录；如果客户端需要安装包，手动执行 `pnpm pack` 并安装生成的 `dsh-personal-workbench-*.tgz`。安装后从左侧导航打开「个人工作台」。
+构建产物包括 `dist/client.js` 与 `dist/host-model.js`。在 DSH 插件管理界面加载本地插件目录；如果客户端需要安装包，手动执行 `pnpm pack` 并安装生成的 `dsh-personal-workbench-*.tgz`。安装后从左侧导航打开「个人工作台」。
 
 启动时自动打开工作台可在工作台管理界面关闭。实际安装与离线部署兼容性仍需在目标客户端验证。
 
@@ -49,7 +49,7 @@ pnpm dev -- --no-watch        # 只构建并启动
 
 - 首页默认选择个人助手，可明确授权多个工作区内的会话供本次会话只读检索；也可直接选择业务工作区发起原生会话。工作台内打开对话并返回，不跳转其他 Panel。
 - 定制时无需选择业务工作区，Builder Agent 通过专用工具读取草稿、修改、编译及等待浏览器预览确认。用户仅发送需求，工具成功后才说明完成；发布仍需用户确认。
-- 「猜你想做」保留状态推荐，可按需选择近期会话，由个人助手基于真实消息生成并保存最多三项带来源建议。
+- 「猜你想做」保留状态推荐，内置模板可按需选择近期会话，由个人助手基于真实消息生成并保存最多三项带来源建议。自定义页面的元数据授权不包含建议正文。
 - 历史版本可载入草稿、预览并重新发布。开发指引及可用组件见 [workbench-dev Skill](skills/workbench-dev/SKILL.md)。
 
 架构及权限边界见 [docs/architecture.md](docs/architecture.md)。Host 端改动需要重启 `pnpm dev`，而非只等待浏览器 HMR。

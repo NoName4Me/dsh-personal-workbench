@@ -4,7 +4,7 @@ import { studioSessionIds } from "./ai"
 import { loadState, readState, type State } from "./model"
 export type Candidate={id:string;boardId:string;sessionId:string;source:string}
 export type Recommendation={title:string;description:string;sessionId:string;seq:number}
-export type Snapshot={revision:number;state?:State|null;unchanged?:boolean;builders:{sessionId:string;boardId:string}[];personal:{sessionId:string;sessionIds:string[];active:boolean}[];internalIds?:string[];pending:Candidate[];recommendations?:Record<string,Recommendation[]>}
+export type Snapshot={revision:number;state?:State|null;unchanged?:boolean;builders:{sessionId:string;boardId:string}[];personal:{sessionId:string;sessionIds:string[];active:boolean}[];internalIds?:string[];internalWorkspaceIds?:string[];pending:Candidate[];recommendations?:Record<string,Recommendation[]>}
 type Carrier=(url:string|URL,init:RequestInit)=>Promise<Response>
 export async function hostRequest<T>(body?:Record<string,unknown>,revision?:number,signal?:AbortSignal):Promise<T>{
  const url=new URL("api/personal-workbench",document.baseURI)
@@ -30,7 +30,7 @@ export function useHostStore(){
   if(next.revision<previous.revision)return
   const merged={...next,state:next.unchanged?previous.state:next.state}
   if(merged.state&&!next.unchanged)merged.state=readState(merged.state)
-  const same=next.revision===previous.revision&&JSON.stringify(next.pending)===JSON.stringify(previous.pending)&&JSON.stringify(next.recommendations)===JSON.stringify(previous.recommendations)
+  const same=next.revision===previous.revision&&JSON.stringify(next.pending)===JSON.stringify(previous.pending)&&JSON.stringify(next.recommendations)===JSON.stringify(previous.recommendations)&&JSON.stringify(next.internalWorkspaceIds)===JSON.stringify(previous.internalWorkspaceIds)
   server.current=merged;if(!same)setSnapshot(merged)
   if(applyState&&merged.state&&(!next.unchanged||current.current!==merged.state)){current.current=merged.state;setState(merged.state)}
  },[])
@@ -83,6 +83,16 @@ export function useHostStore(){
    return true
   }catch(e){setError(String(e));return false}
  }
+ async function commitDurable(fn:(s:State)=>State):Promise<boolean>{
+  if(!loaded.current||actions.current){setError("Workbench storage is busy or unavailable");return false}
+  actions.current++
+  try{return await queue(async()=>{
+   if(!loaded.current||!server.current.state)throw new Error("Workbench storage is not ready")
+   const next=readState(fn(server.current.state))
+   accept(await hostRequest<Snapshot>({action:"save",revision:server.current.revision,state:next}))
+   setError("");return true
+  })}catch(e){setError(String(e));return false}finally{actions.current--}
+ }
  async function action<T>(body:Record<string,unknown>):Promise<T>{
   actions.current++
   try{return await queue(async()=>{
@@ -92,6 +102,6 @@ export function useHostStore(){
    return result
   })}finally{actions.current--}
  }
- return {state,snapshot,ready,error,setError,current,commit,action,reload,recoveryEpoch}
+ return {state,snapshot,ready,error,setError,current,commit,commitDurable,action,reload,recoveryEpoch}
 }
 export type HostStore=ReturnType<typeof useHostStore>

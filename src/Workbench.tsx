@@ -54,7 +54,8 @@ export function Workbench({useWorkspaces,useSessions,useSessionStatus=useNoSessi
  const [portal,setPortal]=React.useState<HTMLDivElement|null>(null)
  const [confirmation,setConfirmation]=React.useState<{description:string;run:()=>void;destructive?:boolean}|null>(null)
  const fileRef=React.useRef<HTMLInputElement>(null)
- const workspaces=useWorkspaces(s=>s.items)
+ const allWorkspaces=useWorkspaces(s=>s.items)
+ const workspaces=React.useMemo(()=>allWorkspaces.filter(w=>!snapshot.internalWorkspaceIds?.includes(w.workspaceId)),[allWorkspaces,snapshot.internalWorkspaceIds])
  const archived=useWorkspaces(s=>s.archivedSessionIds)
  const sessions=useSessions(s=>s)
  const statuses=useSessionStatus(s=>s)
@@ -74,7 +75,7 @@ export function Workbench({useWorkspaces,useSessions,useSessionStatus=useNoSessi
  const live=published(board)
  const builtin=!!live&&isBuiltin(live.source)
  const canRead=builtin||grant===board.id+":"+live?.id
- const liveContext=React.useMemo(()=>canRead?{...context,recommendations:(snapshot.recommendations?.[board.id]??[]).filter(r=>context.sessions.some(s=>s.id===r.sessionId))}: {...NO_CONTEXT,locale:context.locale},[canRead,context,snapshot.recommendations,board.id])
+ const liveContext=React.useMemo(()=>canRead?{...context,recommendations:builtin?(snapshot.recommendations?.[board.id]??[]).filter(r=>context.sessions.some(s=>s.id===r.sessionId)):[]}: {...NO_CONTEXT,locale:context.locale},[canRead,builtin,context,snapshot.recommendations,board.id])
  const previewContext=React.useMemo(()=>isBuiltin(board.draft)?context:{...NO_CONTEXT,locale:context.locale},[board.draft,context])
  function update(fn:(b:Board)=>Board){return commit(s=>replaceBoard(s,fn(s.boards.find(b=>b.id===s.active)!)))}
  function changeMode(next:Mode){
@@ -179,7 +180,7 @@ export function Workbench({useWorkspaces,useSessions,useSessionStatus=useNoSessi
    <div className="wb-toolbar-main">{mode!=="home"&&<Button variant="ghost" size="icon-sm" onClick={back} aria-label={mode==="conversation"?t("returnWorkbench"):t("back")}><ArrowLeft/></Button>}
    <span className="wb-brand">{t("panel")}</span>
    {mode==="home"?<ChoiceSelect label={t("selectBoard")} value={state.active} onChange={select} options={state.boards.map(b=>({value:b.id,label:b.title+(state.defaultId===b.id?" · "+t("defaultMark"):"")}))} className="wb-quiet-select wb-board-select"/>:<span className="wb-current">{mode==="conversation"?chat?.title:board.title}</span>}</div>
-   <div className="wb-toolbar-actions">{mode==="home"?<><Button size="sm" variant="ghost" onClick={()=>changeMode("manage")}>{t("manage")}</Button><Button size="sm" variant="outline" onClick={()=>changeMode("edit")}><WandSparkles/>{t("edit")}</Button></>:mode==="edit"?<><Button variant="outline" size="sm" disabled={!!candidate||previewStatus!=="ready"||preview?.source!==board.draft} onClick={()=>update(b=>saveDraft(b,versionLabel))}><Save/>{t("saveVersion")}</Button><Button size="sm" disabled={!previewMatches} onClick={()=>{if(update(b=>publishDraft(b,versionLabel))){setGrant("");back()}}}>{t("publish")}</Button></>:null}</div>
+   <div className="wb-toolbar-actions">{mode==="home"?<><Button size="sm" variant="ghost" onClick={()=>changeMode("manage")}>{t("manage")}</Button><Button size="sm" variant="outline" onClick={()=>changeMode("edit")}><WandSparkles/>{t("edit")}</Button></>:mode==="edit"?<><Button variant="outline" size="sm" disabled={!!candidate||previewStatus!=="ready"||preview?.source!==board.draft} onClick={()=>{void host.commitDurable(s=>replaceBoard(s,saveDraft(s.boards.find(b=>b.id===board.id)!,versionLabel)))}}><Save/>{t("saveVersion")}</Button><Button size="sm" disabled={!previewMatches} onClick={()=>{void host.commitDurable(s=>replaceBoard(s,publishDraft(s.boards.find(b=>b.id===board.id)!,versionLabel))).then(ok=>{if(ok){setGrant("");back()}})}}>{t("publish")}</Button></>:null}</div>
  </header>
  {error&&<div className="wb-notice" role="alert">{error}<Button size="sm" variant="ghost" onClick={()=>setError("")}>{t("dismiss")}</Button></div>}
  {(mode==="home"||mode==="conversation")&&<div className="wb-home" style={mode==="conversation"?{display:"none"}:undefined}>
