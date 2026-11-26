@@ -3,15 +3,16 @@ import type {ClientContext,SessionReference,StudioChatProps} from "./host"
 export const STUDIO_SLOT="personal-workbench.studio.conversation"
 export type StudioSlotProps={
  renderFactorySlot:(name:string,props:Record<string,unknown>,options?:Record<string,unknown>)=>React.ReactNode
+ variant?:"embedded"|"main"
 }
 type ViewProps={renderSlot:(name:string,props:Record<string,unknown>)=>React.ReactNode}
-export function StudioConversation({renderFactorySlot}:StudioSlotProps){
+export function StudioConversation({renderFactorySlot,variant="embedded"}:StudioSlotProps){
  return <div className="wb-native-chat">{renderFactorySlot("conversation.content",{
-  variant:"embedded",phase:"active",hero:false,onWorkspaceSelected:async()=>{}
+  variant,phase:"active",hero:false,onWorkspaceSelected:async()=>{}
  },{slots:{views:({renderSlot}:ViewProps)=>renderSlot("conversation.session",{view:"chat"})}})}</div>
 }
 export type NativeSeat={SessionProvider:React.ComponentType<{session:SessionReference;children?:React.ReactNode}>;renderSlot:(name:string,props:Record<string,unknown>)=>React.ReactNode}
-export function StudioChat({ctx,seat,sessionId,prompt,onError,onPrefilled}:StudioChatProps&{ctx:ClientContext;seat:NativeSeat}){
+export function StudioChat({ctx,seat,sessionId,prompt,onError,onPrefilled,variant="embedded"}:StudioChatProps&{ctx:ClientContext;seat:NativeSeat}){
  const [ref,setRef]=React.useState<SessionReference|null>(null),[failure,setFailure]=React.useState("")
  const latest=React.useRef({prompt,onError,onPrefilled});latest.current={prompt,onError,onPrefilled}
  React.useEffect(()=>{
@@ -39,5 +40,5 @@ export function StudioChat({ctx,seat,sessionId,prompt,onError,onPrefilled}:Studi
  },[ctx,sessionId])
  if(!ref)return <div className="wb-native-chat-loading" role={failure?"alert":"status"}>{failure||"…"}</div>
  const Provider=seat.SessionProvider
- return <Provider session={ref}>{seat.renderSlot(STUDIO_SLOT,{})}</Provider>
+ return <Provider session={ref}>{seat.renderSlot(STUDIO_SLOT,{variant})}</Provider>
 }

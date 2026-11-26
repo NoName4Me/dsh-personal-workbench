@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, writeFileSync, renameSync, unlinkSync } from "node:fs"
+import { mkdirSync, readFileSync, writeFileSync, renameSync, unlinkSync, realpathSync } from "node:fs"
 import { join, resolve } from "node:path"
 import { randomUUID,createHash } from "node:crypto"
 import { readState, compile, sourceOK, replaceBoard } from "../dist/host-model.js"
@@ -18,7 +18,7 @@ export class Store {
  constructor(dir){
   this.dir=dir;this.file=join(dir,"state.json");this.pending=new Map()
   mkdirSync(dir,{recursive:true,mode:0o700})
-  this.cwd=join(dir,"agent-work");mkdirSync(this.cwd,{recursive:true,mode:0o700})
+  this.cwd=join(dir,"agent-work");mkdirSync(this.cwd,{recursive:true,mode:0o700});this.cwd=realpathSync(this.cwd)
  }
  read(){
   try{
@@ -51,7 +51,7 @@ export class Store {
   this.write({...d,revision:d.revision+1,state:next,recommendations,legacyIds:migrated});return this.snapshot()
  }
  bind(sessionId,grant){
-  if(!validId(sessionId))throw new Error("Invalid session id")
+  if(!validId(sessionId)||!sessionId.startsWith("session-"))throw new Error("Invalid session id")
   const d=this.read();if(!d.state)throw new Error("Workbench has not been initialized")
   if(Object.hasOwn(d.grants,sessionId))throw new Error("Session is already bound")
   if(Object.keys(d.grants).length>=MAX_GRANTS)throw new Error("Workbench session limit reached")

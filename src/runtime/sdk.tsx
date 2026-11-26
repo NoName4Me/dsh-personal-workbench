@@ -13,6 +13,7 @@ export function useWorkbench(){const context=React.useContext(RuntimeContext);if
 export function useStored<T>(key:string,initial:T):[T,(value:T)=>void]{
  const ctx=useWorkbench()
  const [value,setValue]=React.useState<T>(()=>Object.hasOwn(ctx.data,key)?ctx.data[key] as T:initial)
+ React.useEffect(()=>{if(Object.hasOwn(ctx.data,key))setValue(ctx.data[key] as T)},[ctx.data,key])
  return [value,(next:T)=>{setValue(next);ctx.save({[key]:next})}]
 }
 export type Send=(request:Request)=>void

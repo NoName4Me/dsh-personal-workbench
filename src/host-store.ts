@@ -24,6 +24,7 @@ export function useHostStore(){
  const current=React.useRef(state),server=React.useRef(EMPTY),tail=React.useRef<Promise<void>>(Promise.resolve())
  const generation=React.useRef(0),busy=React.useRef(0),actions=React.useRef(0),loaded=React.useRef(false)
  const [retry,reload]=React.useReducer(x=>x+1,0)
+ const [recoveryEpoch,setRecoveryEpoch]=React.useState(0)
  const accept=React.useCallback((next:Snapshot,applyState=true)=>{
   const previous=server.current
   if(next.revision<previous.revision)return
@@ -77,7 +78,7 @@ export function useHostStore(){
    void queue(async()=>{
     if(epoch!==generation.current)return
     try{const saved=await hostRequest<Snapshot>({action:"save",revision:server.current.revision,state:next});accept(saved,false)}
-    catch(e){generation.current++;setError(String(e));try{accept(await hostRequest<Snapshot>())}catch(err){loaded.current=false;setReady(false);setError(String(err))}}
+    catch(e){generation.current++;setRecoveryEpoch(x=>x+1);setError(String(e));try{accept(await hostRequest<Snapshot>())}catch(err){loaded.current=false;setReady(false);setError(String(err))}}
    })
    return true
   }catch(e){setError(String(e));return false}
@@ -91,6 +92,6 @@ export function useHostStore(){
    return result
   })}finally{actions.current--}
  }
- return {state,snapshot,ready,error,setError,current,commit,action,reload}
+ return {state,snapshot,ready,error,setError,current,commit,action,reload,recoveryEpoch}
 }
 export type HostStore=ReturnType<typeof useHostStore>

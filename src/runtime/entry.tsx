@@ -27,7 +27,7 @@ export function boot(token:string,load:(require:(name:string)=>unknown,module:{e
   document.body.toggleAttribute("data-ds-dark-theme",props.dark)
   root.render(<Boundary fail={fail}><RuntimeContext.Provider value={{...props.context,data,preview:props.preview,save:patch=>{data={...data,...patch};send({type:"save",value:data})},start:(workspaceId,prompt)=>send({type:"start",workspaceId,prompt}),open:sessionId=>send({type:"open",sessionId}),personal:(prompt,recommend)=>send({type:"personal",prompt,recommend})}}><PortalContext.Provider value={document.getElementById("app")}><App/></PortalContext.Provider><Mounted ready={()=>send({type:"rendered"})}/></RuntimeContext.Provider></Boundary>)
  }
- window.addEventListener("message",e=>{if(e.source!==parent||typeof e.data!=="object"||e.data===null||e.data.token!==token)return;const m=e.data as Incoming;if(m.type!=="init"&&m.type!=="update")return;if(!current||m.type==="init")data=m.data;current=m;render()})
+ window.addEventListener("message",e=>{if(e.source!==parent||typeof e.data!=="object"||e.data===null||e.data.token!==token)return;const m=e.data as Incoming;if(m.type!=="init"&&m.type!=="update")return;if(!current||m.type==="init"||JSON.stringify(m.data)!==JSON.stringify(current.data))data=m.data;current=m;render()})
  send({type:"ready"})
  const timer=window.setInterval(()=>{if(current){clearInterval(timer);return}send({type:"ready"})},300)
  window.setTimeout(()=>clearInterval(timer),5000)

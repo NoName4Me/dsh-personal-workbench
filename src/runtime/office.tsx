@@ -48,7 +48,7 @@ export function Suggestions(){
  const recent=ctx.sessions.slice(0,12)
  const semantic=ctx.recommendations??[]
  const refresh=()=>ctx.personal(t("请阅读我授权的近期业务会话，找出最多三项有具体依据、值得下一步开展的工作建议。不要仅根据标题推断，先读取实际消息，并调用 personal_suggest 将建议及来源事件保存到工作台。","Read the approved business conversations. Identify up to three actionable next steps with concrete evidence; read actual messages, then call personal_suggest to save recommendations with source events."),true)
- const next:Suggestion[]=semantic.map((r,i)=>({id:"semantic:"+i,title:r.title,detail:r.description,Icon:Sparkles,run:()=>ctx.open(r.sessionId)}))
+ const next:Suggestion[]=semantic.map((r,i)=>({id:"semantic:"+i,title:r.title,detail:r.description+" · "+(ctx.sessions.find(s=>s.id===r.sessionId)?.title??r.sessionId)+" #"+r.seq,Icon:Sparkles,run:()=>ctx.open(r.sessionId)}))
  const attention=recent.find(s=>s.status==="attention")
  const completed=recent.find(s=>s.status==="completed")
  const running=recent.find(s=>s.status==="running")

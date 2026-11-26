@@ -57,6 +57,6 @@ export function Sandbox(props:Props){
   observer.observe(document.documentElement,{attributes:true,attributeFilter:["style","data-ds-dark-theme","class"]})
   return()=>{clearTimeout(timeout);observer.disconnect();window.removeEventListener("message",receive)}
  },[compiled,token,send])
- React.useEffect(()=>{if(status==="ready")send("update")},[props.context,props.preview,send,status])
+ React.useEffect(()=>{if(status==="ready")send("update")},[props.context,props.data,props.preview,send,status])
  return <div className="wb-runtime">{status!=="ready"&&<div className="wb-runtime-status" role="status">{status==="loading"?"Loading workbench…":message}{status==="error"&&!compiled.error&&<button onClick={retry}>Retry</button>}</div>}{html&&<iframe key={token} ref={frame} title="Workbench" sandbox="allow-scripts" referrerPolicy="no-referrer" srcDoc={html} className="wb-frame"/>}</div>
 }

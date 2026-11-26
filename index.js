@@ -25,7 +25,13 @@ export function apply(ctx){
       if(visibleSources(ctx,store,ids).length!==ids.length)throw new Error("Some selected sessions are no longer available")
       value=store.bind(body.sessionId,{kind:"personal",sources:ids,boardId:body.boardId,allowRecommendations:body.allowRecommendations===true});break
      }
-     case "activate":value=store.activate(body.sessionId);break
+     case "activate":{
+      const d=store.read(),g=Object.hasOwn(d.grants,body.sessionId)?d.grants[body.sessionId]:null
+      const session=ctx.get("sessions")?.get(body.sessionId)
+      const preset=session&&ctx.get("agentPresets")?.presetForSession(session)
+      if(!g||!session||preset!=="personal-workbench-"+g.kind||session.header.cwd!==store.cwd)throw new Error("DSH did not create the requested dedicated session")
+      value=store.activate(body.sessionId);break
+     }
      case "revoke":value=store.revoke(body.sessionId);break
      case "preview":value=store.acknowledge(body);break
      default:return new Response("Unknown action",{status:400})
