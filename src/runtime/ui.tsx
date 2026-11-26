@@ -53,7 +53,7 @@ export function Checklist(){
  const items=Array.isArray(list)?list.filter(x=>x&&typeof x.id==="string"&&typeof x.text==="string"):[]
  return <Section title={t("个人清单","Personal checklist")}><p className="wb-section-note">{t("只记录自己的事项。","Keep track of your own tasks.")} {items.length>0&&t("已完成 "+items.filter(x=>x.done).length+"/"+items.length,items.filter(x=>x.done).length+"/"+items.length+" done")}</p>
   <form className="wb-inline" onSubmit={e=>{e.preventDefault();if(value.trim()){setList([...items,{id:String(Date.now()),text:value.trim().slice(0,300),done:false}]);setValue("")}}}><Input aria-label={t("新事项","New item")} placeholder={t("添加一项待办…","Add a task…")} value={value} onChange={e=>setValue(e.target.value)}/><Button type="submit" variant="outline" size="icon-sm" aria-label={t("添加","Add")} disabled={!value.trim()}><Plus/></Button></form>
-  {items.map(x=><div key={x.id} className="wb-check-row"><label className={x.done?"wb-task-done":undefined}><Checkbox checked={!!x.done} onCheckedChange={()=>setList(items.map(i=>i.id===x.id?{...i,done:!i.done}:i))}/><span>{x.text}</span></label><Button variant="ghost" size="icon-sm" aria-label={t("删除","Delete")+" "+x.text} onClick={()=>setList(items.filter(i=>i.id!==x.id))}><X/></Button></div>)}
+  {items.map(x=><div key={x.id} className="wb-check-row"><label className={x.done?"wb-task-done":undefined}><Checkbox aria-label={x.text} checked={!!x.done} onCheckedChange={()=>setList(items.map(i=>i.id===x.id?{...i,done:!i.done}:i))}/><span>{x.text}</span></label><Button variant="ghost" size="icon-sm" aria-label={t("删除","Delete")+" "+x.text} onClick={()=>setList(items.filter(i=>i.id!==x.id))}><X/></Button></div>)}
  </Section>
 }
 export function GeneralPage(){

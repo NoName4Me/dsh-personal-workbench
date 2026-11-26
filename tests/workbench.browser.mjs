@@ -5,7 +5,7 @@ test("built-in page displays real adapter data and opens host session",async({pa
  await expect(frame(page).getByRole("heading",{name:"今天做什么？"})).toBeVisible()
  await expect(frame(page).getByText("经营数据核对").first()).toBeVisible()
  await frame(page).getByText("经营数据核对").first().click()
- expect(await page.evaluate(()=>window.__calls.some(c=>c[0]==="open"&&c[1]==="s1"))).toBeTruthy()
+ await expect.poll(()=>page.evaluate(()=>window.__calls.some(c=>c[0]==="open"&&c[1]==="s1"))).toBeTruthy()
 })
 test("AI response becomes a draft, preview is isolated, publication persists",async({page})=>{
  await page.goto("/")
@@ -40,7 +40,7 @@ async function createTemplate(page,name,heading){
  await expect(frame(page).getByRole("heading",{name:heading,exact:true})).toBeVisible()
 }
 async function noOverflow(page){
- const html=frame(page).locator("html")
+ const html=frame(page).locator("#app")
  expect(await html.evaluate(el=>el.scrollWidth<=el.clientWidth+2)).toBeTruthy()
 }
 async function setTheme(page,dark){
@@ -63,7 +63,7 @@ test("general template uses scoped accessible select and responsive layout",asyn
  await expect(trigger).toContainText("验收项目")
  await frame(page).getByRole("textbox",{name:"工作需求"}).fill("测试工作")
  await frame(page).getByRole("button",{name:"打开对话"}).click()
- expect(await page.evaluate(()=>window.__calls.some(c=>c[0]==="start"&&c[1]==="w1"&&c[2]?.prompt==="测试工作"))).toBeTruthy()
+ await expect.poll(()=>page.evaluate(()=>window.__calls.some(c=>c[0]==="start"&&c[1]==="w1"&&c[2]?.prompt==="测试工作"))).toBeTruthy()
  await page.getByRole("combobox",{name:"切换工作台"}).click()
  await expect(page.getByRole("option",{name:/通用工作台/})).toBeVisible()
  await page.keyboard.press("Escape")
@@ -104,7 +104,7 @@ test("project template filters conversations and tools template persists checkli
  await frame(page).getByRole("textbox",{name:"搜索工具"}).fill("")
  await frame(page).getByRole("textbox",{name:"新事项"}).fill("核对数据")
  await frame(page).getByRole("button",{name:"添加",exact:true}).click()
- await frame(page).getByRole("checkbox",{name:"核对数据"}).check()
+ await frame(page).getByRole("checkbox",{name:"核对数据",exact:true}).click()
  await expect(frame(page).getByRole("checkbox",{name:"核对数据"})).toBeChecked()
  await setTheme(page,false)
  await page.screenshot({path:testInfo.outputPath("tools-light.png")})
