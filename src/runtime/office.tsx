@@ -42,8 +42,25 @@ export function ShortcutLibrary({compact=false}:{compact?:boolean}){
 }
 export function Suggestions(){
  const ctx=useWorkbench(),t=useCopy()
- const rows=ctx.sessions.filter(s=>s.status==="attention"||s.status==="completed"||s.status==="running").slice(0,3)
- const candidates=[...rows,...ctx.sessions.filter(s=>!rows.some(r=>r.id===s.id))].slice(0,3)
- if(!candidates.length)return <section className="wb-section"><div className="wb-section-heading"><h2>{t("猜你想做","Suggested for you")}</h2></div><p className="wb-empty wb-suggestion-empty">{t("开始使用 DSH 后，这里会根据近期会话与任务状态推荐下一步。","Suggestions appear here when you start using DSH.")}</p></section>
- return <section className="wb-section"><div className="wb-section-heading"><div><h2>{t("猜你想做","Suggested for you")}</h2><p>{t("根据近期会话与任务状态生成","Based on recent conversation activity")}</p></div><Sparkles size={16} className="wb-row-icon"/></div><div className="wb-suggestions">{candidates.map(s=>{const w=ctx.workspaces.find(w=>w.id===s.workspaceId);const title=s.status==="attention"?t("处理待确认事项","Review pending input"):s.status==="completed"?t("查看最新结果","Review new results"):s.status==="running"?t("查看正在进行的工作","Check ongoing work"):t("继续上次工作","Resume recent work");const Icon=s.status==="attention"?CircleAlert:s.status==="completed"?CheckCircle2:s.status==="running"?Clock:MessageSquare;return <Button key={s.id} variant="outline" className="wb-suggestion" onClick={()=>ctx.open(s.id)}><Icon/><span><strong>{title}</strong><small>{s.title}{w?" · "+w.title:""}</small></span><ArrowRight className="wb-row-arrow"/></Button>})}</div></section>
+ type Suggestion={id:string;title:string;detail:string;Icon:typeof Sparkles;run:()=>void}
+ // The ranking is deterministic and uses actual host activity, never invented
+ // sessions or a hidden model call. Session contents are not read.
+ const recent=ctx.sessions.slice(0,12)
+ const next:Suggestion[]=[]
+ const attention=recent.find(s=>s.status==="attention")
+ const completed=recent.find(s=>s.status==="completed")
+ const running=recent.find(s=>s.status==="running")
+ if(attention)next.push({id:attention.id,title:t("处理待确认事项","Review pending input"),detail:attention.title,Icon:CircleAlert,run:()=>ctx.open(attention.id)})
+ if(completed)next.push({id:completed.id,title:t("查看最新交付结果","Review new results"),detail:completed.title,Icon:CheckCircle2,run:()=>ctx.open(completed.id)})
+ // Offer a cross-session synthesis only within one real workspace. Titles
+ // are explicit hints, not evidence of completed work.
+ const workspace=ctx.workspaces.map(w=>({w,sessions:recent.filter(s=>s.workspaceId===w.id)})).sort((a,b)=>b.sessions.length-a.sessions.length)[0]
+ if(workspace&&workspace.sessions.length>=2){
+  const titles=workspace.sessions.slice(0,5).map(s=>s.title)
+  next.push({id:"summary:"+workspace.w.id,title:t("整理近期工作进展","Summarize recent work"),detail:workspace.w.title+" · "+workspace.sessions.length+t(" 个近期会话"," recent conversations"),Icon:ClipboardList,run:()=>ctx.start(workspace.w.id,t("请协助整理近期工作进展。以下仅为近期会话标题，请先向我确认实际进展与资料，不要把标题当作事实。按已完成、进行中、风险、下一步输出工作简报：\n","Help summarize recent work. These are conversation titles only; ask me to confirm actual progress and evidence. Organize completed work, ongoing tasks, risks and next steps:\n")+titles.map(x=>"- "+x).join("\n"))})
+ }
+ const last=recent.find(s=>!next.some(x=>x.id===s.id))
+ if(last){const lower=last.title.toLocaleLowerCase();const review=/报告|汇报|材料|方案|文档|report|document|proposal/.test(lower);const data=/数据|表格|核对|分析|excel|spreadsheet|data/.test(lower);const title=review?t("检查材料是否达到交付要求","Check deliverable readiness"):data?t("复核分析与数据口径","Verify analysis and data definitions"):running?.id===last.id?t("查看正在进行的工作","Check ongoing work"):t("继续上次工作","Resume recent work");next.push({id:last.id,title,detail:last.title,Icon:review?FileCheck:data?GitCompare:Clock,run:()=>ctx.open(last.id)})}
+ if(!next.length)return <section className="wb-section"><div className="wb-section-heading"><h2>{t("猜你想做","Suggested for you")}</h2></div><p className="wb-empty wb-suggestion-empty">{t("开始使用 DSH 后，这里会根据近期会话与任务状态推荐下一步。","Suggestions appear here when you start using DSH.")}</p></section>
+ return <section className="wb-section"><div className="wb-section-heading"><div><h2>{t("猜你想做","Suggested for you")}</h2><p>{t("根据近期会话标题与任务状态推荐","Based on recent conversation titles and status")}</p></div><Sparkles size={16} className="wb-row-icon"/></div><div className="wb-suggestions">{next.slice(0,3).map(({id,title,detail,Icon,run})=><Button key={id} variant="outline" className="wb-suggestion" onClick={run}><Icon/><span><strong>{title}</strong><small>{detail}</small></span><ArrowRight className="wb-row-arrow"/></Button>)}</div></section>
 }

@@ -8,7 +8,7 @@ export type UseSessions=<T>(select:(snapshot:SessionState)=>T)=>T
 export type Status={running?:boolean;pendingInteraction?:unknown;completionUnread?:boolean;completionFailed?:boolean}
 export type UseSessionStatus=<T>(select:(snapshot:ReadonlyMap<string,Status>)=>T)=>T
 export type SessionReference={sessionId:string;ready:Promise<unknown>;release:()=>void}
-export type StudioChatProps={sessionId:string;initialPrompt?:string;onError:(message:string)=>void}
+export type StudioChatProps={sessionId:string;onError:(message:string)=>void}
 export interface WorkbenchProps {useWorkspaces:UseWorkspaces;useSessions:UseSessions;useSessionStatus:UseSessionStatus;startSession:(id?:string,prompt?:string)=>void;openSession:(id:string)=>void;createStudio:(workspaceId:string)=>Promise<string>;renderStudio:(props:StudioChatProps)=>React.ReactNode;readAI:(sessionId:string,signal:AbortSignal)=>Promise<string>;t:(key:string)=>string}
 export interface ClientContext {
  slots:{inject:(name:string,callback:()=>unknown)=>unknown;register:(options:Record<string,unknown>,component:unknown)=>unknown}

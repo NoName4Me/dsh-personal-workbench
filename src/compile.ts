@@ -6,6 +6,6 @@ export function compile(source: string): string {
   return transform(source,{transforms:["typescript","jsx","imports"],production:true,jsxRuntime:"classic",filePath:"Workbench.tsx"}).code
 }
 export function extractSource(text:string):string {
-  const fenced = text.match(/(?:^|\n)\x60\x60\x60(?:tsx|jsx|typescript)?[ \t]*\r?\n([\s\S]*?)\r?\n\x60\x60\x60(?:\r?\n|$)/i)
-  return (fenced?.[1]??text).trim()
+ const blocks=[...text.matchAll(/(?:^|\n)\x60\x60\x60(?:tsx|jsx|typescript|javascript|ts|js)?[ \t]*\r?\n([\s\S]*?)\r?\n\x60\x60\x60(?=\r?\n|$)/gi)].map(x=>x[1].trim())
+ return (blocks.filter(x=>/\bexport\s+default\b/.test(x)).at(-1)??blocks.at(-1)??text).trim()
 }

@@ -3,7 +3,7 @@ import { LayoutDashboard,ArrowLeft } from "lucide-react"
 import { Workbench } from "./Workbench"
 import { StudioChat, StudioConversation, STUDIO_SLOT, type NativeSeat } from "./StudioChat"
 import { zh,en } from "./locale"
-import { latestAssistantText } from "./ai"
+import { latestCompletedAssistantText } from "./ai"
 import type { ClientContext,WorkbenchProps } from "./host"
 import css from "./compiled.css?text"
 const PANEL_ID="personal-workbench",NS="personalWorkbench"
@@ -28,7 +28,7 @@ export function apply(ctx:ClientContext){
     startSession:(id?:string,prompt?:string)=>{mark(true);ctx.uiWorkspace.startSession(id,prompt?{prompt,whenDraftExists:"append"}:undefined)},
     openSession:(id:string)=>{mark(true);ctx.uiWorkspace.openSession(id)},
     createStudio:(workspaceId:string)=>ctx.sessions.create({workspaceId}),
-    readAI:async(id:string,signal:AbortSignal)=>{const result=await ctx.remote.session.events({address:{kind:"session",sessionId:id},maxMessages:40},signal);if(!result.ok||!result.value)throw new Error(result.error?.message??"Unable to read the session");return latestAssistantText(result.value.records)}
+    readAI:async(id:string,signal:AbortSignal)=>{const result=await ctx.remote.session.events({address:{kind:"session",sessionId:id},maxMessages:40},signal);if(!result.ok||!result.value)throw new Error(result.error?.message??"Unable to read the session");return latestCompletedAssistantText(result.value.records)}
    })
   },(props:Omit<WorkbenchProps,"renderStudio">&NativeSeat)=><><style>{css}</style><Workbench {...props} renderStudio={p=><StudioChat key={p.sessionId} ctx={ctx} seat={props} {...p}/>}/></>)
   if(!startupSelected){startupSelected=true;try{if(localStorage.getItem("dsh-workbench:startup")!=="off")ctx.layout.selectPanel(PANEL_ID)}catch(e){console.warn("Workbench startup selection unavailable",e)}}

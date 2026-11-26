@@ -13,7 +13,7 @@ export function StudioConversation({renderFactorySlot}:StudioSlotProps){
  },{slots:{views:({renderSlot}:ViewProps)=>renderSlot("conversation.session",{view:"chat"})}})}</div>
 }
 export type NativeSeat={SessionProvider:React.ComponentType<{session:SessionReference;children?:React.ReactNode}>;renderSlot:(name:string,props:Record<string,unknown>)=>React.ReactNode}
-export function StudioChat({ctx,seat,sessionId,initialPrompt,onError}:StudioChatProps&{ctx:ClientContext;seat:NativeSeat}){
+export function StudioChat({ctx,seat,sessionId,onError}:StudioChatProps&{ctx:ClientContext;seat:NativeSeat}){
  const [ref,setRef]=React.useState<SessionReference|null>(null)
  const errorRef=React.useRef(onError);errorRef.current=onError
  React.useEffect(()=>{
@@ -25,17 +25,20 @@ export function StudioChat({ctx,seat,sessionId,initialPrompt,onError}:StudioChat
    const held=reference
    void held.ready.then(()=>{
     if(controller.signal.aborted)return
+    const promptKey="dsh-workbench:studio-prompt:"+sessionId
+    const initialPrompt=localStorage.getItem(promptKey)
     if(initialPrompt){
      const binding=ctx.sessions.binding(sessionId)
      if(!binding)throw new Error("The customization session is not available")
      const result=ctx.conversation.input.requestDraftInitialization(binding,{prompt:initialPrompt,whenDraftExists:"keep"})
      if(result==="blocked")throw new Error("The customization draft is busy")
+     localStorage.removeItem(promptKey)
     }
     setRef(held)
    }).catch(e=>{if(!controller.signal.aborted)errorRef.current(String(e))})
   }catch(e){errorRef.current(String(e))}
   return ()=>{controller.abort();reference?.release()}
- },[ctx,sessionId,initialPrompt])
+ },[ctx,sessionId])
  if(!ref)return <div className="wb-native-chat-loading" role="status">…</div>
  const Provider=seat.SessionProvider
  return <Provider session={ref}>{seat.renderSlot(STUDIO_SLOT,{})}</Provider>

@@ -16,21 +16,21 @@
   height:100%; min-height:0; overflow:auto; color:var(--wb-fg); background:var(--wb-bg);
   font-family:var(--wb-font);font-size:13px;line-height:1.5; box-sizing:border-box; text-align:left;
 }
-@layer base {.dsh-wb *, .dsh-wb *::before, .dsh-wb *::after {box-sizing:border-box; border-style:solid; border-width:0; border-color:var(--wb-border)}}
-.dsh-wb button,.dsh-wb select,.dsh-wb textarea {font-family:inherit}
-.dsh-wb button {cursor:pointer}
-.dsh-wb button:disabled {cursor:default}
+@layer base {.dsh-wb :not(.wb-native-chat *, .wb-native-chat), .dsh-wb :not(.wb-native-chat *, .wb-native-chat)::before, .dsh-wb :not(.wb-native-chat *, .wb-native-chat)::after {box-sizing:border-box; border-style:solid; border-width:0; border-color:var(--wb-border)}}
+.dsh-wb button:not(.wb-native-chat *),.dsh-wb select:not(.wb-native-chat *),.dsh-wb textarea:not(.wb-native-chat *) {font-family:inherit}
+.dsh-wb button:not(.wb-native-chat *) {cursor:pointer}
+.dsh-wb button:not(.wb-native-chat *):disabled {cursor:default}
 .dsh-wb .wb-header {padding:calc(var(--dsh-frame-top-clearance,0px) + 16px) 24px 12px; font-size:13px; font-weight:500}
 .dsh-wb .wb-content {max-width:800px;margin:0 auto;padding:32px 32px 64px}
-.dsh-wb h1 {font-size:26px;line-height:1.3;font-weight:500;letter-spacing:-.015em;margin:0 0 8px}
+.dsh-wb h1:not(.wb-native-chat *) {font-size:26px;line-height:1.3;font-weight:500;letter-spacing:-.015em;margin:0 0 8px}
 .dsh-wb .wb-subtitle,.dsh-wb .wb-empty {font-size:14px;color:var(--wb-muted-fg);margin:0}
 .dsh-wb .wb-composer {border:1px solid var(--wb-border);border-radius:var(--wb-radius-md);margin-top:24px;padding:8px;background:var(--wb-bg)}
 .dsh-wb .wb-composer-footer {display:flex;align-items:center;justify-content:space-between;gap:12px;padding:4px 6px;flex-wrap:wrap}
 .dsh-wb .wb-select {display:flex;align-items:center;gap:8px;color:var(--wb-muted-fg);min-width:0}
-.dsh-wb select {background:var(--wb-bg);color:var(--wb-fg);max-width:230px;min-width:0;padding:6px;border-radius:4px;font-size:13px}
-.dsh-wb select:focus-visible {outline:2px solid var(--wb-primary)}
+.dsh-wb select:not(.wb-native-chat *) {background:var(--wb-bg);color:var(--wb-fg);max-width:230px;min-width:0;padding:6px;border-radius:4px;font-size:13px}
+.dsh-wb select:not(.wb-native-chat *):focus-visible {outline:2px solid var(--wb-primary)}
 .dsh-wb .wb-section {margin-top:32px}
-.dsh-wb h2 {font-size:14px;font-weight:500;margin:0 0 12px}
+.dsh-wb h2:not(.wb-native-chat *) {font-size:14px;font-weight:500;margin:0 0 12px}
 .dsh-wb .wb-actions {display:grid;grid-template-columns:repeat(auto-fit,minmax(136px,1fr));gap:8px}
 .dsh-wb .wb-workspaces {display:grid;gap:2px}
 @media(max-width:700px){.dsh-wb .wb-content{padding:24px 16px 48px}}
@@ -44,7 +44,7 @@
 .dsh-wb .wb-session-row:hover,.dsh-wb .wb-session-row:focus-visible{background:var(--wb-muted)}
 .dsh-wb .wb-session-title{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dsh-wb .wb-session-title small{display:block;white-space:normal}
-.dsh-wb small{color:var(--wb-muted-fg);font-size:12px}
+.dsh-wb small:not(.wb-native-chat *){color:var(--wb-muted-fg);font-size:12px}
 .dsh-wb .wb-panel{padding:16px;border:1px solid var(--wb-border);border-radius:var(--wb-radius-sm)}
 .dsh-wb .wb-stack{display:grid;gap:12px}
 .dsh-wb .wb-inline{display:flex;gap:8px;align-items:center}
@@ -95,7 +95,7 @@
 
 .dsh-wb .wb-content{width:min(100%,800px);box-sizing:border-box}
 .dsh-wb .wb-toolbar{padding-inline-start:max(20px,var(--dsh-frame-leading-clearance,0px))}
-.dsh-wb button:focus-visible,.dsh-wb select:focus-visible,.dsh-wb input:focus-visible,.dsh-wb textarea:focus-visible{outline:2px solid var(--wb-primary);outline-offset:2px}
+.dsh-wb button:not(.wb-native-chat *):focus-visible,.dsh-wb select:not(.wb-native-chat *):focus-visible,.dsh-wb input:not(.wb-native-chat *):focus-visible,.dsh-wb textarea:not(.wb-native-chat *):focus-visible{outline:2px solid var(--wb-primary);outline-offset:2px}
 .dsh-wb .wb-confirm-box h2{margin-bottom:12px}
 .dsh-wb .wb-confirm-box p{font-size:13px;line-height:1.6}
 .dsh-wb .wb-board-select select{font-size:13px}
@@ -192,8 +192,8 @@
 
 /* No global preflight: remove browser control defaults only inside the workbench. */
 @layer base {
- .dsh-wb button {color:inherit;background-color:transparent;font:inherit;}
- .dsh-wb input,.dsh-wb textarea {color:inherit;font:inherit;}
+ .dsh-wb button:not(.wb-native-chat *) {color:inherit;background-color:transparent;font:inherit;}
+ .dsh-wb input:not(.wb-native-chat *),.dsh-wb textarea:not(.wb-native-chat *) {color:inherit;font:inherit;}
 }
 .dsh-wb [data-slot="button"][data-variant="ghost"] {background-color:transparent;color:var(--wb-fg);}
 .dsh-wb [data-slot="button"][data-variant="ghost"]:hover,.dsh-wb [data-slot="button"][data-variant="ghost"][aria-pressed="true"] {background-color:var(--wb-muted);}
