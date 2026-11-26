@@ -20,15 +20,15 @@ jobs:
         with:
           node-version: '24'
       - run: pnpm install --no-frozen-lockfile
-      - run: pnpm --filter dsh-personal-workbench check
-      - run: pnpm --filter dsh-personal-workbench test
-      - run: pnpm --filter dsh-personal-workbench build
-      - run: node --check plugins/personal-workbench/dist/client.js
+      - run: pnpm check
+      - run: pnpm test
+      - run: pnpm build
+      - run: node --check dist/client.js
       - if: runner.os == 'Linux'
-        run: pnpm --filter dsh-personal-workbench exec playwright install chromium --with-deps
+        run: pnpm exec playwright install chromium --with-deps
       - if: runner.os == 'Linux'
-        run: pnpm --filter dsh-personal-workbench test:browser
-      - run: pnpm --filter dsh-personal-workbench pack --pack-destination "${{ github.workspace }}/artifacts"
+        run: pnpm test:browser
+      - run: pnpm pack --pack-destination "${{ github.workspace }}/artifacts"
       - uses: actions/upload-artifact@v4
         with:
           name: workbench-${{ matrix.os }}
