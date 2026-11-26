@@ -1,12 +1,13 @@
 {
   "name": "dsh-personal-workbench",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Personal workbench for DeepSeek Harness",
   "type": "module",
   "exports": {
     ".": "./index.js",
     "./client": "./dist/client.js",
-    "./icon": "./icon.svg"
+    "./icon": "./icon.svg",
+    "./agent": "./host/agent.mjs"
   },
   "files": [
     "index.js",
@@ -15,7 +16,10 @@
     "icon.svg",
     "README.md",
     "THIRD_PARTY.md",
-    "skills"
+    "skills",
+    "host",
+    "dist/host-model.js",
+    "docs/architecture.md"
   ],
   "engines": {
     "dsh": "0.2.2-rc.5 || 0.2.3-alpha.2"

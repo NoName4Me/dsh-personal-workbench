@@ -1,3 +1,21 @@
 - insert:
     - id: personal-workbench
       name: dsh-personal-workbench
+    - id: preset-personal-workbench-builder
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: personal-workbench-builder
+        name: Workbench Builder
+        plugins:
+          - name: dsh-personal-workbench/agent
+            config:
+              mode: builder
+    - id: preset-personal-workbench-personal
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: personal-workbench-personal
+        name: Personal Assistant
+        plugins:
+          - name: dsh-personal-workbench/agent
+            config:
+              mode: personal

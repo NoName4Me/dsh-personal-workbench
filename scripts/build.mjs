@@ -7,6 +7,7 @@ import { scopeCss } from "./scope-css.mjs"
 const root=resolve(dirname(fileURLToPath(import.meta.url)),"..")
 process.chdir(root)
 await mkdir("dist",{recursive:true})
+await build({entryPoints:["src/host-model.ts"],bundle:true,platform:"node",format:"esm",target:"node24",outfile:"dist/host-model.js",banner:{js:"import { createRequire } from \"node:module\"; const require = createRequire(import.meta.url);"}})
 const output="dist/.tailwind.css"
 const cli=resolve(root,"node_modules/@tailwindcss/cli/package.json")
 const manifest=JSON.parse(await readFile(cli,"utf8"))
