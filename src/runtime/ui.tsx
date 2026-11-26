@@ -28,11 +28,11 @@ export function Composer(){
  const selected=ctx.workspaces.some(w=>w.id===target)?target:DEFAULT
  const submit=()=>ctx.start(selected===DEFAULT?undefined:selected,prompt.trim()||undefined)
  const disabled=!ctx.workspaces.length&&!!prompt.trim()
- return <form className="wb-composer" onSubmit={e=>{e.preventDefault();if(!disabled)submit()}}>
+ return <div className="wb-composer">
   <Textarea aria-label={t("工作需求","Task")} placeholder={t("描述你需要完成的工作…","Describe what you need to do…")} value={prompt} onChange={e=>setPrompt(e.target.value)} rows={3} className="wb-composer-input" onKeyDown={e=>{if((e.metaKey||e.ctrlKey)&&e.key==="Enter"&&!e.nativeEvent.isComposing&&!disabled){e.preventDefault();submit()}}}/>
-  <div className="wb-composer-footer"><div className="wb-composer-target"><Folder size={16} aria-hidden="true"/><ChoiceSelect label={t("工作区","Workspace")} value={selected} onChange={setTarget} options={[{value:DEFAULT,label:t("默认工作区","Default workspace")},...ctx.workspaces.map(w=>({value:w.id,label:w.title}))]} className="wb-quiet-select"/></div><Button type="submit" size="sm" disabled={disabled}>{t("打开对话","Open conversation")}<ArrowUpRight/></Button></div>
+  <div className="wb-composer-footer"><div className="wb-composer-target"><Folder size={16} aria-hidden="true"/><ChoiceSelect label={t("工作区","Workspace")} value={selected} onChange={setTarget} options={[{value:DEFAULT,label:t("默认工作区","Default workspace")},...ctx.workspaces.map(w=>({value:w.id,label:w.title}))]} className="wb-quiet-select"/></div><Button type="button" onClick={submit} size="sm" disabled={disabled}>{t("打开对话","Open conversation")}<ArrowUpRight/></Button></div>
   {!ctx.workspaces.length&&<p className="wb-empty wb-onboarding">{t("通过 DSH 侧栏添加工作区，即可带入任务描述。","Add a workspace from the DSH sidebar to prefill a task.")}</p>}
- </form>
+ </div>
 }
 function actions(t:Copy){return [
  {label:t("材料撰写","Write documents"),description:t("报告、通知、总结","Reports, notices, summaries"),hint:t("请协助我撰写材料，先确认用途、受众和资料。","Help me write a document; clarify purpose, audience and materials."),Icon:FilePenLine},
@@ -51,8 +51,9 @@ export function RecentWork({attention=false}:{attention?:boolean}){const ctx=use
 export function Checklist(){
  const t=useCopy(),[list,setList]=useStored<{id:string;text:string;done:boolean}[]>("checklist",[]),[value,setValue]=React.useState("")
  const items=Array.isArray(list)?list.filter(x=>x&&typeof x.id==="string"&&typeof x.text==="string"):[]
+ const add=()=>{if(value.trim()){setList([...items,{id:String(Date.now()),text:value.trim().slice(0,300),done:false}]);setValue("")}}
  return <Section title={t("个人清单","Personal checklist")}><p className="wb-section-note">{t("只记录自己的事项。","Keep track of your own tasks.")} {items.length>0&&t("已完成 "+items.filter(x=>x.done).length+"/"+items.length,items.filter(x=>x.done).length+"/"+items.length+" done")}</p>
-  <form className="wb-inline" onSubmit={e=>{e.preventDefault();if(value.trim()){setList([...items,{id:String(Date.now()),text:value.trim().slice(0,300),done:false}]);setValue("")}}}><Input aria-label={t("新事项","New item")} placeholder={t("添加一项待办…","Add a task…")} value={value} onChange={e=>setValue(e.target.value)}/><Button type="submit" variant="outline" size="icon-sm" aria-label={t("添加","Add")} disabled={!value.trim()}><Plus/></Button></form>
+  <div className="wb-inline"><Input aria-label={t("新事项","New item")} placeholder={t("添加一项待办…","Add a task…")} value={value} onChange={e=>setValue(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&!e.nativeEvent.isComposing){e.preventDefault();add()}}}/><Button type="button" onClick={add} variant="outline" size="icon-sm" aria-label={t("添加","Add")} disabled={!value.trim()}><Plus/></Button></div>
   {items.map(x=><div key={x.id} className="wb-check-row"><label className={x.done?"wb-task-done":undefined}><Checkbox aria-label={x.text} checked={!!x.done} onCheckedChange={()=>setList(items.map(i=>i.id===x.id?{...i,done:!i.done}:i))}/><span>{x.text}</span></label><Button variant="ghost" size="icon-sm" aria-label={t("删除","Delete")+" "+x.text} onClick={()=>setList(items.filter(i=>i.id!==x.id))}><X/></Button></div>)}
  </Section>
 }
