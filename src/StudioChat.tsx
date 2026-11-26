@@ -6,40 +6,38 @@ export type StudioSlotProps={
 }
 type ViewProps={renderSlot:(name:string,props:Record<string,unknown>)=>React.ReactNode}
 export function StudioConversation({renderFactorySlot}:StudioSlotProps){
- // A dedicated Session always uses the regular docked composer. It is never
- // redirected by the blank-hero workspace picker.
  return <div className="wb-native-chat">{renderFactorySlot("conversation.content",{
   variant:"embedded",phase:"active",hero:false,onWorkspaceSelected:async()=>{}
  },{slots:{views:({renderSlot}:ViewProps)=>renderSlot("conversation.session",{view:"chat"})}})}</div>
 }
 export type NativeSeat={SessionProvider:React.ComponentType<{session:SessionReference;children?:React.ReactNode}>;renderSlot:(name:string,props:Record<string,unknown>)=>React.ReactNode}
-export function StudioChat({ctx,seat,sessionId,onError}:StudioChatProps&{ctx:ClientContext;seat:NativeSeat}){
- const [ref,setRef]=React.useState<SessionReference|null>(null)
- const errorRef=React.useRef(onError);errorRef.current=onError
+export function StudioChat({ctx,seat,sessionId,prompt,onError,onPrefilled}:StudioChatProps&{ctx:ClientContext;seat:NativeSeat}){
+ const [ref,setRef]=React.useState<SessionReference|null>(null),[failure,setFailure]=React.useState("")
+ const latest=React.useRef({prompt,onError,onPrefilled});latest.current={prompt,onError,onPrefilled}
  React.useEffect(()=>{
   const controller=new AbortController()
   let reference:SessionReference|undefined
-  setRef(null)
+  setRef(null);setFailure("")
+  const fail=(e:unknown)=>{if(!controller.signal.aborted){setFailure(String(e));latest.current.onError(String(e))}}
   try{
    reference=ctx.sessions.retain(sessionId,{source:"workbenchStudio",signal:controller.signal})
    const held=reference
    void held.ready.then(()=>{
     if(controller.signal.aborted)return
-    const promptKey="dsh-workbench:studio-prompt:"+sessionId
-    const initialPrompt=localStorage.getItem(promptKey)
+    const initialPrompt=latest.current.prompt
     if(initialPrompt){
      const binding=ctx.sessions.binding(sessionId)
-     if(!binding)throw new Error("The customization session is not available")
+     if(!binding)throw new Error("The conversation is not available")
      const result=ctx.conversation.input.requestDraftInitialization(binding,{prompt:initialPrompt,whenDraftExists:"keep"})
-     if(result==="blocked")throw new Error("The customization draft is busy")
-     localStorage.removeItem(promptKey)
+     if(result==="blocked")throw new Error("The conversation draft is busy")
+     latest.current.onPrefilled?.()
     }
     setRef(held)
-   }).catch(e=>{if(!controller.signal.aborted)errorRef.current(String(e))})
-  }catch(e){errorRef.current(String(e))}
+   }).catch(fail)
+  }catch(e){fail(e)}
   return ()=>{controller.abort();reference?.release()}
  },[ctx,sessionId])
- if(!ref)return <div className="wb-native-chat-loading" role="status">…</div>
+ if(!ref)return <div className="wb-native-chat-loading" role={failure?"alert":"status"}>{failure||"…"}</div>
  const Provider=seat.SessionProvider
  return <Provider session={ref}>{seat.renderSlot(STUDIO_SLOT,{})}</Provider>
 }

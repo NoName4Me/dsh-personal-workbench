@@ -10,7 +10,7 @@ export function apply(ctx){
   path:PATH,methods:["GET","POST"],requestBody:"buffered",
   fetch:async request=>{
    try{
-    if(request.method==="GET")return Response.json(store.snapshot(),{headers:{"cache-control":"no-store"}})
+    if(request.method==="GET"){const s=store.snapshot();const revision=new URL(request.url).searchParams.get("revision");if(revision!==null&&Number(revision)===s.revision){delete s.state;s.unchanged=true}return Response.json(s,{headers:{"cache-control":"no-store"}})}
     if(!request.headers.get("content-type")?.startsWith("application/json"))return new Response("Expected JSON",{status:415})
     const text=await request.text()
     if(text.length>36_000_000)return new Response("Request too large",{status:413})
