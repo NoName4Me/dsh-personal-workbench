@@ -11,10 +11,12 @@ import { compile, extractSource } from "./compile"
 import { initialState, TEMPLATES, isBuiltin } from "./templates"
 import { loadState, storeState, newBoard, replaceBoard, deleteBoard, saveDraft, publishDraft, editVersion, published, exportBoard, importBoard, MAX_BOARDS, MAX_SOURCE, type Board, type State } from "./model"
 import type { ContextData } from "./protocol"
-import type { WorkbenchProps } from "./host"
+import type { Status, UseSessionStatus, WorkbenchProps } from "./host"
 
 const EMPTY_DATA: Record<string,unknown>={}
 const NO_CONTEXT:ContextData={workspaces:[],sessions:[],locale:"zh"}
+const NO_STATUSES:ReadonlyMap<string,Status>=new Map()
+function useNoSessionStatus<T>(select:(snapshot:ReadonlyMap<string,Status>)=>T):T{return select(NO_STATUSES)}
 type Mode="home"|"manage"|"edit"
 type Action={type:"start";id?:string;prompt?:string}|{type:"open";id:string}
 function aiPrompt(source:string,request:string){
@@ -29,7 +31,7 @@ function download(name:string,text:string){
  const u=URL.createObjectURL(new Blob([text],{type:"application/json"}))
  const a=document.createElement("a");a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)
 }
-export function Workbench({useWorkspaces,useSessions,useSessionStatus,startSession,openSession,askAI,readAI,t}:WorkbenchProps){
+export function Workbench({useWorkspaces,useSessions,useSessionStatus=useNoSessionStatus as UseSessionStatus,startSession,openSession,askAI,readAI,t}:WorkbenchProps){
  const [boot]=React.useState(()=>{try{const state=loadState(localStorage,initialState);return {state,error:""}}catch(e){return {state:initialState(),error:String(e)}}})
  const [state,setState]=React.useState(()=>{try{const saved=sessionStorage.getItem("dsh-workbench:resume");if(saved&&boot.state.boards.some(b=>b.id===saved))return {...boot.state,active:saved}}catch{}return {...boot.state,active:boot.state.defaultId}})
  const current=React.useRef(state)

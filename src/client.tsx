@@ -6,7 +6,7 @@ import { latestAssistantText } from "./ai"
 import type { ClientContext } from "./host"
 import css from "./compiled.css?text"
 const PANEL_ID="personal-workbench",NS="personalWorkbench"
-export const inject=["slots","locale","layout","uiWorkspace","uiSession.sessionStatus","sessions","conversation","remote.session"]
+export const inject=["slots","locale","layout","uiWorkspace","sessions","conversation","remote.session"]
 export function apply(ctx:ClientContext){
  ctx.effect(()=>ctx.locale.register(NS,{zh,en}),"personal-workbench: locale")
  const t=ctx.locale.bind(NS)

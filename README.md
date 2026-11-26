@@ -2,7 +2,7 @@
 
 为 [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) 提供可通过 AI 自主定制的个人首页。无需编程即可从模板开始组织工作，也可以将日常需求转化为可重复使用的个人界面。
 
-> 当前为技术预览版，开发基线 DSH `v0.2.3-alpha.2`。尚未正式发布，真实 DSH Desktop 和内网模型仍待验收。请勿直接用于敏感业务数据。
+> 当前为技术预览版，支持 DSH `v0.2.2-rc.5` 与 `v0.2.3-alpha.2`。尚未正式发布，真实 DSH Desktop 和内网模型仍待验收。请勿直接用于敏感业务数据。
 
 ## 功能
 
@@ -13,16 +13,31 @@
 - **离线运行**：组件和 TSX 编译器随插件打包，不依赖 CDN 或运行时 npm 下载。
 - **视觉一致性**：继承 DSH 官方视觉规范及主题变量，使用 shadcn/ui（Radix）与 Lucide；通用、项目、工具模板分别采用首页、项目列表与可搜索工具布局，用户可自主覆盖页面风格。
 
-## 本地开发与安装
+## 本地开发（dev 模式）
 
-使用 Node.js 24 和 pnpm 10。从源码构建：
+使用 pnpm 10，并确保已全局安装受支持的 `dsh`。首次运行：
 
 ```bash
 git clone https://github.com/NoName4Me/dsh-personal-workbench.git
 cd dsh-personal-workbench
 pnpm install
-pnpm build
+pnpm dev
 ```
+
+`pnpm dev` 会构建 `dist/client.js`，把当前目录以 `link:` 方式安装到隔离的 `workbench-dev` profile，并启动 Web UI。首次运行会从现有 `web` profile 复制模型与 patch 配置，不修改原 `web` profile。默认端口 `5273`；`src/**` 改动会自动重建，已打开的页面通过 DSH client HMR 重载插件。
+
+常用参数：
+
+```bash
+pnpm dev -- --profile web     # 装进真实的 web profile
+pnpm dev -- --port 3080       # 指定端口
+pnpm dev -- --no-open         # 不自动打开浏览器
+pnpm dev -- --no-watch        # 只构建并启动
+```
+
+`index.js`、`cordis.patch.yml` 等宿主侧改动需要重新运行 `pnpm dev`。退出后插件仍保留在 `workbench-dev` profile 中，可再次启动或手动移除。
+
+## 安装到 DSH
 
 构建产物为 `dist/client.js`。在 DSH 插件管理界面加载本地插件目录；如果客户端需要安装包，手动执行 `pnpm pack` 并安装生成的 `dsh-personal-workbench-*.tgz`。安装后从左侧导航打开「个人工作台」。
 
