@@ -1,10 +1,8 @@
 # DSH Personal Workbench · 个人工作台
 
-[![Build](https://github.com/NoName4Me/dsh-personal-workbench/actions/workflows/check.yml/badge.svg)](https://github.com/NoName4Me/dsh-personal-workbench/actions/workflows/check.yml)
-
 为 [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) 提供可通过 AI 自主定制的个人首页。无需编程即可从模板开始组织工作，也可以将日常需求转化为可重复使用的个人界面。
 
-> 当前为技术预览版，开发基线 DSH `v0.2.3-alpha.2`。自动化构建及模拟宿主浏览器测试已建立，真实 DSH Desktop 和内网模型仍待验收。请勿直接用于敏感业务数据。
+> 当前为技术预览版，开发基线 DSH `v0.2.3-alpha.2`。尚未正式发布，真实 DSH Desktop 和内网模型仍待验收。请勿直接用于敏感业务数据。
 
 ## 功能
 
@@ -15,40 +13,28 @@
 - **离线运行**：组件和 TSX 编译器随插件打包，不依赖 CDN 或运行时 npm 下载。
 - **视觉一致性**：继承 DSH 官方视觉规范及主题变量，使用 shadcn/ui（Radix）与 Lucide；通用、项目、工具模板分别采用首页、项目列表与可搜索工具布局，用户可自主覆盖页面风格。
 
-## 安装
+## 本地开发与安装
 
-1. 在 [GitHub Actions](https://github.com/NoName4Me/dsh-personal-workbench/actions/workflows/check.yml) 中打开最新成功的构建，下载相应平台的 artifact。
-2. 解压 ZIP，取得 `dsh-personal-workbench-*.tgz`。
-3. 在 DSH 插件管理界面添加本地插件包。安装后从左侧导航打开「个人工作台」。
+使用 Node.js 24 和 pnpm 10。从源码构建：
+
+```bash
+git clone https://github.com/NoName4Me/dsh-personal-workbench.git
+cd dsh-personal-workbench
+pnpm install
+pnpm build
+```
+
+构建产物为 `dist/client.js`。在 DSH 插件管理界面加载本地插件目录；如果客户端需要安装包，手动执行 `pnpm pack` 并安装生成的 `dsh-personal-workbench-*.tgz`。安装后从左侧导航打开「个人工作台」。
 
 启动时自动打开工作台可在工作台管理界面关闭。实际安装与离线部署兼容性仍需在目标客户端验证。
+
+可选的本地检查：`pnpm check`（TypeScript）与 `pnpm test`（核心逻辑）。现阶段以完成需求、解决阻塞问题为主，待功能基本完成后集中进行真实客户端主流程验收；暂不配置 CI、自动化浏览器测试或自动发布。
 
 ## 定制工作台
 
 打开「定制」，填写需求并进入 DSH 原生 AI 会话，发送预填内容。AI 完成后返回工作台，选择「导入 AI 最新结果」，运行交互预览，保存版本或发布。也可以粘贴完整 TSX 源码。
 
 历史版本可载入草稿、预览并重新发布。开发指引及可用组件见 [workbench-dev Skill](skills/workbench-dev/SKILL.md)。
-
-## 开发
-
-使用 Node.js 24（DSH 当前基线要求 24.22.3 或更高的 24.x 版本）和 pnpm 10。
-
-```bash
-pnpm install --no-frozen-lockfile
-pnpm check
-pnpm test
-pnpm build
-pnpm pack
-```
-
-浏览器主流程测试：
-
-```bash
-pnpm exec playwright install chromium
-pnpm test:browser
-```
-
-构建产物位于 `dist/client.js`，`pnpm pack` 生成可分发的插件包。CI 覆盖 Windows/Linux 构建、单元测试及 Linux Chromium 浏览器测试，浏览器测试采用模拟 DSH adapter，不代表真实客户端集成测试。
 
 ## 数据与安全边界
 
