@@ -1,6 +1,6 @@
 {
   "name": "dsh-personal-workbench",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Personal workbench for DeepSeek Harness",
   "type": "module",
   "exports": {

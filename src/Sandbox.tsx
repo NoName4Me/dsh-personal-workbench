@@ -6,7 +6,7 @@ import runtime from "./runtime.js?text"
 import css from "./compiled.css?text"
 const safeScript=(s:string)=>s.replace(/<\/script/gi,"<\\/script")
 const safeStyle=(s:string)=>s.replace(/<\/style/gi,"<\\/style")
-const keys=["bg","fg","muted","muted-fg","border","primary","primary-fg"] as const
+const keys=["bg","fg","muted","muted-fg","border","primary","primary-fg","popover","radius-xs","radius-sm","radius-md","font"] as const
 type Props={source:string;context:ContextData;data:Record<string,unknown>;preview:boolean;onSave:(value:Record<string,unknown>)=>void;onStart:(id?:string,prompt?:string)=>void;onOpen:(id:string)=>void;onStatus:(status:"loading"|"ready"|"error",detail?:string)=>void}
 export function Sandbox(props:Props){
  const frame=React.useRef<HTMLIFrameElement>(null)
@@ -21,7 +21,7 @@ export function Sandbox(props:Props){
   const nonce=token.replace(/-/g,"")
   const policy="default-src 'none'; script-src 'nonce-"+nonce+"'; style-src 'unsafe-inline'; img-src data:; font-src 'none'; connect-src 'none'; media-src 'none'; object-src 'none'; frame-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'"
   const init="__wbRuntime.boot("+JSON.stringify(token)+",function(require,module,exports){\n"+compiled.code+"\n});"
-  return '<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="'+policy+'"><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body,#app{height:100%;margin:0}body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;font-size:14px}.dsh-wb{--wb-bg:inherit;--wb-fg:inherit;--wb-muted:inherit;--wb-muted-fg:inherit;--wb-border:inherit;--wb-primary:inherit;--wb-primary-fg:inherit}'+safeStyle(css)+'.dsh-wb{--wb-bg:inherit;--wb-fg:inherit;--wb-muted:inherit;--wb-muted-fg:inherit;--wb-border:inherit;--wb-primary:inherit;--wb-primary-fg:inherit}</style></head><body><div id="app" class="dsh-wb"></div><script nonce="'+nonce+'">'+safeScript(runtime)+'</script><script nonce="'+nonce+'">'+safeScript(init)+'</script></body></html>'
+  return '<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="'+policy+'"><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body,#app{height:100%;margin:0}body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;font-size:14px}.dsh-wb{--wb-bg:inherit;--wb-fg:inherit;--wb-muted:inherit;--wb-muted-fg:inherit;--wb-border:inherit;--wb-primary:inherit;--wb-primary-fg:inherit;--wb-popover:inherit;--wb-radius-xs:inherit;--wb-radius-sm:inherit;--wb-radius-md:inherit;--wb-font:inherit}'+safeStyle(css)+'.dsh-wb{--wb-bg:inherit;--wb-fg:inherit;--wb-muted:inherit;--wb-muted-fg:inherit;--wb-border:inherit;--wb-primary:inherit;--wb-primary-fg:inherit;--wb-popover:inherit;--wb-radius-xs:inherit;--wb-radius-sm:inherit;--wb-radius-md:inherit;--wb-font:inherit}</style></head><body><div id="app" class="dsh-wb"></div><script nonce="'+nonce+'">'+safeScript(runtime)+'</script><script nonce="'+nonce+'">'+safeScript(init)+'</script></body></html>'
  },[compiled,token])
  const send=React.useCallback((type:"init"|"update")=>{
   const f=frame.current;if(!f?.contentWindow)return
@@ -53,6 +53,7 @@ export function Sandbox(props:Props){
   window.addEventListener("message",receive)
   const observer=new MutationObserver(()=>{if(initialized)send("update")})
   observer.observe(document.body,{attributes:true,attributeFilter:["style","data-ds-dark-theme","class"]})
+  observer.observe(document.documentElement,{attributes:true,attributeFilter:["style","data-ds-dark-theme","class"]})
   return()=>{clearTimeout(timeout);observer.disconnect();window.removeEventListener("message",receive)}
  },[compiled,token,send])
  React.useEffect(()=>{if(status==="ready")send("update")},[props.context,props.preview,send,status])

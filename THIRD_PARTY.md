@@ -1,6 +1,6 @@
 ## shadcn/ui
 
-Button and Textarea copied from the New York v4 registry, with only the cn import adapted. https://github.com/shadcn-ui/ui
+Button, Textarea, Input, Checkbox, Select, Dialog and Tabs copied from the New York v4 registry, with local imports, scoped portals and DSH-specific styling adapted. https://github.com/shadcn-ui/ui
 
 MIT License
 

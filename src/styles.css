@@ -3,6 +3,9 @@
 @source "./";
 @custom-variant dark (&:where([data-ds-dark-theme], [data-ds-dark-theme] *));
 @theme inline {
+  --color-popover: var(--wb-popover);
+  --color-popover-foreground: var(--wb-fg);
+  --color-muted: var(--wb-muted);
   --color-background: var(--wb-bg);
   --color-foreground: var(--wb-fg);
   --color-primary: var(--wb-primary);
@@ -16,5 +19,8 @@
   --color-border: var(--wb-border);
   --color-ring: var(--wb-primary);
   --color-destructive: #b42318;
-  --radius-md: 6px;
+  --radius-xs: var(--wb-radius-xs);
+  --radius-sm: var(--wb-radius-xs);
+  --radius-md: var(--wb-radius-sm);
+  --radius-lg: var(--wb-radius-md);
 }

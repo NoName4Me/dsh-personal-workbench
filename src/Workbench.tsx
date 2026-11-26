@@ -2,6 +2,10 @@ import React from "react"
 import { ArrowLeft, ChevronDown, Code2, Download, History, Plus, Save, Upload, WandSparkles } from "lucide-react"
 import { Button } from "./ui/button"
 import { Textarea } from "./ui/textarea"
+import { Input } from "./ui/input"
+import { Checkbox } from "./ui/checkbox"
+import { ChoiceSelect, ConfirmDialog } from "./ui/controls"
+import { PortalContext } from "./ui/portal"
 import { Sandbox } from "./Sandbox"
 import { compile, extractSource } from "./compile"
 import { initialState, TEMPLATES, isBuiltin } from "./templates"
@@ -16,8 +20,8 @@ type Action={type:"start";id?:string;prompt?:string}|{type:"open";id:string}
 function aiPrompt(source:string,request:string){
  return [
  "你正在修改 DSH Personal Workbench 的 React/TSX 页面。请遵循 workbench-dev Skill。只输出完整 TSX 源码（一个代码块），不要创建插件、读写文件或执行命令。",
- "可导入 react 和 @workbench/ui。后者提供 Page, Section, Panel, Stack, Button, Textarea, Field, Composer, QuickActions, Workspaces, RecentWork, Checklist, GeneralPage, ProjectPage, ToolsPage, useWorkbench, useStored。",
- "必须 export default function App()。useWorkbench() 返回 workspaces、sessions、data、save(patch)、start(workspaceId?,prompt?)、open(sessionId)、preview、locale。useStored(key,initial) 返回 [value,setValue]。不使用网络、外部依赖或宿主 API。界面使用内置组件，保持简洁紧凑。保存业务数据时使用 useStored，避免存储敏感信息。",
+ "可导入 react 和 @workbench/ui。后者提供 Page, Section, Panel, Stack, Button, Textarea, Input, Checkbox, ChoiceSelect, Tabs, TabsList, TabsTrigger, TabsContent, Dialog, DialogContent, DialogTitle, DialogDescription, DialogTrigger, Field, Composer, QuickActions, Workspaces, RecentWork, Checklist, GeneralPage, ProjectPage, ToolsPage, useWorkbench, useStored。",
+ "必须 export default function App()。useWorkbench() 返回 workspaces、sessions、data、save(patch)、start(workspaceId?,prompt?)、open(sessionId)、preview、locale。useStored(key,initial) 返回 [value,setValue]。不使用网络、外部依赖或宿主 API。默认继承 DSH 主题，优先使用成熟内置组件（选择器、弹窗、复选框不要自行实现）。用户指定的风格可以覆盖默认样式，使用 React style 或页面局部 CSS；运行时没有动态 Tailwind 编译。保存业务数据时使用 useStored，避免存储敏感信息。",
  "当前源码：",source,"修改要求：",request
  ].join("\n\n")
 }
@@ -46,6 +50,8 @@ export function Workbench({useWorkspaces,useSessions,useSessionStatus,startSessi
  const [previewData,setPreviewData]=React.useState<Record<string,unknown>>({})
  const [grant,setGrant]=React.useState("")
  const [action,setAction]=React.useState<Action|null>(null)
+ const [portal,setPortal]=React.useState<HTMLDivElement|null>(null)
+ const [confirmation,setConfirmation]=React.useState<{description:string;run:()=>void;destructive?:boolean}|null>(null)
  const [aiWorkspace,setAiWorkspace]=React.useState("")
  const fileRef=React.useRef<HTMLInputElement>(null)
  const workspaces=useWorkspaces(s=>s.items)
@@ -84,14 +90,14 @@ export function Workbench({useWorkspaces,useSessions,useSessionStatus,startSessi
  const previewMatches=preview?.source===board.draft&&previewStatus==="ready"&&!runtimeError&&!!board.title.trim()
  const setAsDefault=()=>commit(s=>({...s,defaultId:board.id}))
  const back=()=>changeMode("home")
- return <div className="dsh-wb wb-shell">
+ return <PortalContext.Provider value={portal}><div className="dsh-wb wb-shell" ref={setPortal}>
  <header className="wb-toolbar">
    <div className="wb-toolbar-main">{mode!=="home"&&<Button variant="ghost" size="icon-sm" onClick={back} aria-label={t("back")}><ArrowLeft/></Button>}
    <span className="wb-brand">{t("panel")}</span>
-   {mode==="home"?<label className="wb-board-select"><select aria-label={t("selectBoard")} value={state.active} onChange={e=>select(e.target.value)}>{state.boards.map(b=><option key={b.id} value={b.id}>{b.title}{state.defaultId===b.id?" · "+t("defaultMark"):""}</option>)}</select><ChevronDown size={14}/></label>:<span className="wb-current">{board.title}</span>}</div>
+   {mode==="home"?<ChoiceSelect label={t("selectBoard")} value={state.active} onChange={select} options={state.boards.map(b=>({value:b.id,label:b.title+(state.defaultId===b.id?" · "+t("defaultMark"):"")}))} className="wb-quiet-select wb-board-select"/>:<span className="wb-current">{board.title}</span>}</div>
    <div className="wb-toolbar-actions">{mode==="home"?<><Button size="sm" variant="ghost" onClick={()=>changeMode("manage")}>{t("manage")}</Button><Button size="sm" variant="outline" onClick={()=>changeMode("edit")}><WandSparkles/>{t("edit")}</Button></>:mode==="edit"?<><Button variant="outline" size="sm" onClick={()=>update(b=>saveDraft(b,versionLabel))}><Save/>{t("saveVersion")}</Button><Button size="sm" disabled={!previewMatches} onClick={()=>{if(update(b=>publishDraft(b,versionLabel))){setGrant("");back()}}}>{t("publish")}</Button></>:null}</div>
  </header>
- {error&&<div className="wb-notice" role="alert">{error}{storageBlocked?<><Button variant="outline" size="sm" onClick={()=>{const raw=localStorage.getItem("dsh-personal-workbench:state:v1");if(raw)download("workbench-recovery.json",raw)}}>{t("backup")}</Button><Button variant="outline" size="sm" onClick={()=>{if(window.confirm(t("resetConfirm"))){try{const next=initialState();storeState(localStorage,next);current.current=next;setState(next);setStorageBlocked(false);setError("")}catch(e){setError(String(e))}}}}>{t("reset")}</Button></>:<Button size="sm" variant="ghost" onClick={()=>setError("")}>{t("dismiss")}</Button>}</div>}
+ {error&&<div className="wb-notice" role="alert">{error}{storageBlocked?<><Button variant="outline" size="sm" onClick={()=>{const raw=localStorage.getItem("dsh-personal-workbench:state:v1");if(raw)download("workbench-recovery.json",raw)}}>{t("backup")}</Button><Button variant="outline" size="sm" onClick={()=>setConfirmation({description:t("resetConfirm"),destructive:true,run:()=>{try{const next=initialState();storeState(localStorage,next);current.current=next;setState(next);setStorageBlocked(false);setError("")}catch(e){setError(String(e))}}})}>{t("reset")}</Button></>:<Button size="sm" variant="ghost" onClick={()=>setError("")}>{t("dismiss")}</Button>}</div>}
  {mode==="home"&&<div className="wb-home">
    {!live?<div className="wb-content"><h1>{board.title}</h1><p className="wb-subtitle">{t("unpublished")}</p><Button className="mt-4" onClick={()=>changeMode("edit")}>{t("edit")}</Button></div>:<>
    {!builtin&&<div className="wb-permission"><span>{t("customNotice")}</span><Button size="sm" variant="outline" onClick={()=>{setAction(null);setGrant(canRead?"":board.id+":"+live.id)}}>{canRead?t("revoke"):t("grant")}</Button></div>}
@@ -99,26 +105,26 @@ export function Workbench({useWorkspaces,useSessions,useSessionStatus,startSessi
    </>}
  </div>}
  {mode==="manage"&&<main className="wb-content wb-manage">
-   <div className="wb-heading"><div><h1>{t("manage")}</h1><p className="wb-subtitle">{t("manageHint")}</p><label className="wb-setting"><input type="checkbox" checked={startup} onChange={e=>{try{localStorage.setItem("dsh-workbench:startup",e.target.checked?"on":"off");setStartup(e.target.checked)}catch(err){setError(String(err))}}}/>{t("startup")}</label></div><Button size="sm" variant="outline" onClick={()=>fileRef.current?.click()}><Upload/>{t("import")}</Button><input type="file" ref={fileRef} accept=".json,application/json" hidden onChange={e=>{const f=e.target.files?.[0];e.target.value="";if(f)void importFile(f)}}/></div>
-   <section className="wb-section"><h2>{t("myBoards")}</h2>{state.boards.map(b=><div className="wb-board-row" key={b.id}><div className="wb-row-title"><strong>{b.title}</strong><small>{b.id===state.defaultId?t("defaultMark")+" · ":""}{published(b)?.label??t("unpublished")}</small></div><Button variant="ghost" size="sm" onClick={()=>select(b.id)}>{t("open")}</Button><Button variant="ghost" size="sm" onClick={()=>{if(commit(s=>({...s,active:b.id})))changeMode("edit")}}>{t("edit")}</Button><Button variant="ghost" size="sm" disabled={b.id===state.defaultId||!published(b)} onClick={()=>commit(s=>({...s,defaultId:b.id}))}>{t("setDefault")}</Button><Button variant="ghost" size="icon-sm" aria-label={t("export")} onClick={()=>download(b.title.replace(/[\\/:*?"<>|]/g,"_")+".workbench.json",exportBoard(b))}><Download/></Button><Button variant="ghost" size="sm" onClick={()=>create(published(b)?.source??b.draft,b.title+" · "+t("copy"))}>{t("copy")}</Button><Button variant="ghost" size="sm" onClick={()=>{if(window.confirm(t("deleteConfirm")))commit(s=>deleteBoard(s,b.id))}} disabled={state.boards.length<=1}>{t("delete")}</Button></div>)}</section>
+   <div className="wb-heading"><div><h1>{t("manage")}</h1><p className="wb-subtitle">{t("manageHint")}</p><label className="wb-setting"><Checkbox checked={startup} onCheckedChange={checked=>{try{localStorage.setItem("dsh-workbench:startup",checked===true?"on":"off");setStartup(checked===true)}catch(err){setError(String(err))}}}/>{t("startup")}</label></div><Button size="sm" variant="outline" onClick={()=>fileRef.current?.click()}><Upload/>{t("import")}</Button><input type="file" ref={fileRef} accept=".json,application/json" hidden onChange={e=>{const f=e.target.files?.[0];e.target.value="";if(f)void importFile(f)}}/></div>
+   <section className="wb-section"><h2>{t("myBoards")}</h2>{state.boards.map(b=><div className="wb-board-row" key={b.id}><div className="wb-row-title"><strong>{b.title}</strong><small>{b.id===state.defaultId?t("defaultMark")+" · ":""}{published(b)?.label??t("unpublished")}</small></div><Button variant="ghost" size="sm" onClick={()=>select(b.id)}>{t("open")}</Button><Button variant="ghost" size="sm" onClick={()=>{if(commit(s=>({...s,active:b.id})))changeMode("edit")}}>{t("edit")}</Button><Button variant="ghost" size="sm" disabled={b.id===state.defaultId||!published(b)} onClick={()=>commit(s=>({...s,defaultId:b.id}))}>{t("setDefault")}</Button><Button variant="ghost" size="icon-sm" aria-label={t("export")} onClick={()=>download(b.title.replace(/[\\/:*?"<>|]/g,"_")+".workbench.json",exportBoard(b))}><Download/></Button><Button variant="ghost" size="sm" onClick={()=>create(published(b)?.source??b.draft,b.title+" · "+t("copy"))}>{t("copy")}</Button><Button variant="ghost" size="sm" onClick={()=>setConfirmation({description:t("deleteConfirm"),destructive:true,run:()=>{commit(s=>deleteBoard(s,b.id))}})} disabled={state.boards.length<=1}>{t("delete")}</Button></div>)}</section>
    <section className="wb-section"><h2>{t("newFromTemplate")}</h2><div className="wb-template-grid">{TEMPLATES.map(template=><button className="wb-template" key={template.id} onClick={()=>create(template.source,t("template_"+template.id))}><span className="wb-template-icon">{template.id==="blank"?<Plus/>:<Code2/>}</span><strong>{t("template_"+template.id)}</strong><small>{t("desc_"+template.id)}</small></button>)}</div></section>
  </main>}
  {mode==="edit"&&<div className="wb-studio">
    <section className="wb-preview-col"><div className="wb-sectionbar"><strong>{t("preview")}</strong><Button size="sm" variant="outline" onClick={runPreview}>{t("refreshPreview")}</Button></div>{runtimeError&&<div className="wb-notice" role="alert">{runtimeError}</div>}{preview?<Sandbox key={board.id+":"+preview.nonce} source={preview.source} context={previewContext} data={previewData} preview onSave={setPreviewData} onStart={()=>{}} onOpen={()=>{}} onStatus={(status,detail)=>{setPreviewStatus(status);setRuntimeError(detail??"")}}/>:<div className="wb-placeholder">{t("previewHint")}</div>}</section>
    <section className="wb-editor-col"><div className="wb-sectionbar"><strong>{t("edit")}</strong><small>{t("draft")}</small></div>
-   <label className="wb-field">{t("boardName")}<input value={board.title} maxLength={80} onChange={e=>update(b=>({...b,title:e.target.value}))}/></label>
+   <label className="wb-field">{t("boardName")}<Input value={board.title} maxLength={80} onChange={e=>update(b=>({...b,title:e.target.value}))}/></label>
    <label className="wb-field">{t("changeRequest")}<Textarea rows={3} value={request} onChange={e=>setRequest(e.target.value)} placeholder={t("changePlaceholder")}/></label>
-   <label className="wb-field">{t("workspace")}<select value={selectedWorkspace??""} onChange={e=>setAiWorkspace(e.target.value)}>{workspaces.length===0&&<option value="">{t("emptyPrompt")}</option>}{workspaces.map(w=><option key={w.workspaceId} value={w.workspaceId}>{w.title}</option>)}</select></label>
+   <label className="wb-field">{t("workspace")}<ChoiceSelect label={t("workspace")} value={selectedWorkspace??""} onChange={setAiWorkspace} disabled={!workspaces.length} placeholder={t("emptyPrompt")} options={workspaces.map(w=>({value:w.workspaceId,label:w.title||t("unnamed")}))} className="wb-editor-select"/></label>
    <Button size="sm" onClick={()=>void launchAI()} disabled={!request.trim()||!workspaces.length||aiBusy}><WandSparkles/>{t("askAI")}</Button>
    <p className="wb-help">{t("aiHandoff")}</p>
    {aiSession&&<div className="wb-inline"><Button variant="outline" size="sm" disabled={aiBusy} onClick={()=>void importAI()}>{t("importAI")}</Button><Button variant="ghost" size="sm" onClick={()=>openSession(aiSession)}>{t("returnAI")}</Button></div>}
-   <label className="wb-field">{t("source")}<textarea className="wb-code" spellCheck={false} value={board.draft} maxLength={MAX_SOURCE} onChange={e=>{const value=e.target.value;update(b=>({...b,draft:value}))}} rows={12}/></label>
+   <label className="wb-field">{t("source")}<Textarea className="wb-code" spellCheck={false} value={board.draft} maxLength={MAX_SOURCE} onChange={e=>{const value=e.target.value;update(b=>({...b,draft:value}))}} rows={12}/></label>
    <Button variant="outline" size="sm" onClick={async()=>{try{const source=extractSource(await navigator.clipboard.readText());compile(source);update(b=>({...b,draft:source}))}catch(e){setError(String(e))}}}>{t("pasteCode")}</Button>
-   <label className="wb-field">{t("versionLabel")}<input value={versionLabel} onChange={e=>setVersionLabel(e.target.value)} maxLength={80}/></label>
+   <label className="wb-field">{t("versionLabel")}<Input value={versionLabel} onChange={e=>setVersionLabel(e.target.value)} maxLength={80}/></label>
    <div className="wb-sectionbar"><strong><History size={16}/> {t("history")}</strong>{live&&<Button size="sm" variant="ghost" onClick={setAsDefault} disabled={state.defaultId===board.id}>{t("setDefault")}</Button>}</div>
-   {[...board.versions].reverse().map(v=><div key={v.id} className="wb-version"><div className="wb-row-title"><strong>{v.label}{v.id===board.published?" · "+t("live"):""}</strong><small>{new Date(v.createdAt).toLocaleString()}</small></div><Button size="sm" variant="ghost" onClick={()=>{if(window.confirm(t("restoreDraft")))update(b=>editVersion(b,v.id))}}>{t("editVersion")}</Button><Button size="sm" variant="ghost" disabled={v.id===board.published} onClick={()=>{if(window.confirm(t("restoreConfirm"))&&update(b=>editVersion(b,v.id))){setPreviewData({});setPreviewStatus("loading");setRuntimeError("");setPreview(p=>({source:v.source,nonce:(p?.nonce??0)+1}))}}}>{t("restore")}</Button></div>)}
+   {[...board.versions].reverse().map(v=><div key={v.id} className="wb-version"><div className="wb-row-title"><strong>{v.label}{v.id===board.published?" · "+t("live"):""}</strong><small>{new Date(v.createdAt).toLocaleString()}</small></div><Button size="sm" variant="ghost" onClick={()=>setConfirmation({description:t("restoreDraft"),run:()=>{update(b=>editVersion(b,v.id))}})}>{t("editVersion")}</Button><Button size="sm" variant="ghost" disabled={v.id===board.published} onClick={()=>setConfirmation({description:t("restoreConfirm"),run:()=>{if(update(b=>editVersion(b,v.id))){setPreviewData({});setPreviewStatus("loading");setRuntimeError("");setPreview(p=>({source:v.source,nonce:(p?.nonce??0)+1}))}}})}>{t("restore")}</Button></div>)}
    </section>
  </div>}
- {action&&<div className="wb-confirm" role="dialog" aria-modal="true" aria-label={t("confirmAction")}><div className="wb-confirm-box"><h2>{t("confirmAction")}</h2><p>{action.type==="open"?context.sessions.find(s=>s.id===action.id)?.title:action.prompt||t("start")}</p><div className="wb-toolbar-actions"><Button size="sm" variant="outline" onClick={()=>setAction(null)}>{t("cancel")}</Button><Button size="sm" onClick={()=>perform(action)}>{t("confirm")}</Button></div></div></div>}
- </div>
+ <ConfirmDialog open={!!action||!!confirmation} title={t("confirmAction")} description={confirmation?.description??(action?.type==="open"?context.sessions.find(s=>s.id===action.id)?.title??"":action?.prompt||t("start"))} cancel={t("cancel")} confirm={t("confirm")} destructive={confirmation?.destructive} onCancel={()=>{setAction(null);setConfirmation(null)}} onConfirm={()=>{if(confirmation){setConfirmation(null);confirmation.run()}else if(action)perform(action)}}/>
+ </div></PortalContext.Provider>
 }

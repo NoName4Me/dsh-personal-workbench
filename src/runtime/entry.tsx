@@ -1,6 +1,7 @@
 import React from "react"
 import {createRoot} from "react-dom/client"
 import * as UI from "./ui"
+import { PortalContext } from "../ui/portal"
 import {RuntimeContext} from "./sdk"
 import type {ContextData,Request} from "../protocol"
 type Incoming={type:"init"|"update";token:string;context:ContextData;data:Record<string,unknown>;theme:Record<string,string>;dark:boolean;preview:boolean}
@@ -24,7 +25,7 @@ export function boot(token:string,load:(require:(name:string)=>unknown,module:{e
   for(const [name,value] of Object.entries(props.theme))if(name.startsWith("--wb-"))document.documentElement.style.setProperty(name,value)
   document.documentElement.style.colorScheme=props.dark?"dark":"light"
   document.body.toggleAttribute("data-ds-dark-theme",props.dark)
-  root.render(<Boundary fail={fail}><RuntimeContext.Provider value={{...props.context,data,preview:props.preview,save:patch=>{data={...data,...patch};send({type:"save",value:data})},start:(workspaceId,prompt)=>send({type:"start",workspaceId,prompt}),open:sessionId=>send({type:"open",sessionId})}}><App/><Mounted ready={()=>send({type:"rendered"})}/></RuntimeContext.Provider></Boundary>)
+  root.render(<Boundary fail={fail}><RuntimeContext.Provider value={{...props.context,data,preview:props.preview,save:patch=>{data={...data,...patch};send({type:"save",value:data})},start:(workspaceId,prompt)=>send({type:"start",workspaceId,prompt}),open:sessionId=>send({type:"open",sessionId})}}><PortalContext.Provider value={document.getElementById("app")}><App/></PortalContext.Provider><Mounted ready={()=>send({type:"rendered"})}/></RuntimeContext.Provider></Boundary>)
  }
  window.addEventListener("message",e=>{if(e.source!==parent||typeof e.data!=="object"||e.data===null||e.data.token!==token)return;const m=e.data as Incoming;if(m.type!=="init"&&m.type!=="update")return;if(!current||m.type==="init")data=m.data;current=m;render()})
  send({type:"ready"})
