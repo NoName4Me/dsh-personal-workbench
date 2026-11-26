@@ -28,6 +28,12 @@ jobs:
         run: pnpm exec playwright install chromium --with-deps
       - if: runner.os == 'Linux'
         run: pnpm test:browser
+      - if: always() && runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: workbench-ui-preview
+          path: test-results/**/*.png
+          if-no-files-found: warn
       - run: pnpm pack --pack-destination "${{ github.workspace }}/artifacts"
       - uses: actions/upload-artifact@v4
         with:
