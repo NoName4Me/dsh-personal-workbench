@@ -257,3 +257,10 @@
 .dsh-wb .wb-native-chat{height:100%;min-height:0;flex:1;display:flex;flex-direction:column;overflow:hidden}
 .dsh-wb .wb-native-chat-loading{flex:1;display:grid;place-items:center;color:var(--wb-muted-fg)}
 @media(max-width:760px){.dsh-wb .wb-chat-editor{min-height:540px;flex:none}.dsh-wb .wb-studio-conversation{min-height:480px}}
+
+.dsh-wb .wb-full-conversation{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+.dsh-wb .wb-personal-scope{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 16px;border-bottom:1px solid var(--wb-border);color:var(--wb-muted-fg);font-size:12px}
+.dsh-wb .wb-source-picker{max-height:min(50vh,420px);overflow:auto;display:grid;gap:8px}
+.dsh-wb .wb-source-group{border-top:1px solid var(--wb-border);padding:8px 0}
+.dsh-wb .wb-source-group label{display:flex;align-items:center;gap:8px;padding:6px;font-size:13px;overflow-wrap:anywhere;cursor:pointer}
+.dsh-wb .wb-source-group .wb-source-row{padding-left:26px}

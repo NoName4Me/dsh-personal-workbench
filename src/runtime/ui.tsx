@@ -29,12 +29,12 @@ export function Composer(){
  const ctx=useWorkbench(),t=useCopy()
  const [prompt,setPrompt]=React.useState(""),[target,setTarget]=React.useState(DEFAULT)
  const selected=ctx.workspaces.some(w=>w.id===target)?target:DEFAULT
- const submit=()=>ctx.start(selected===DEFAULT?undefined:selected,prompt.trim()||undefined)
- const disabled=!ctx.workspaces.length&&!!prompt.trim()
+ const submit=()=>selected===DEFAULT?ctx.personal(prompt.trim()||undefined):ctx.start(selected,prompt.trim()||undefined)
+ const disabled=false
  return <div className="wb-composer">
   <Textarea aria-label={t("工作需求","Task")} placeholder={t("描述你需要完成的工作…","Describe what you need to do…")} value={prompt} onChange={e=>setPrompt(e.target.value)} rows={3} className="wb-composer-input" onKeyDown={e=>{if((e.metaKey||e.ctrlKey)&&e.key==="Enter"&&!e.nativeEvent.isComposing&&!disabled){e.preventDefault();submit()}}}/>
-  <div className="wb-composer-footer"><div className="wb-composer-target"><Folder size={16} aria-hidden="true"/><ChoiceSelect label={t("工作区","Workspace")} value={selected} onChange={setTarget} options={[{value:DEFAULT,label:t("默认工作区","Default workspace")},...ctx.workspaces.map(w=>({value:w.id,label:w.title}))]} className="wb-quiet-select"/></div><Button type="button" onClick={submit} size="sm" disabled={disabled}>{t("打开对话","Open conversation")}<ArrowUpRight/></Button></div>
-  {!ctx.workspaces.length&&<p className="wb-empty wb-onboarding">{t("通过 DSH 侧栏添加工作区，即可带入任务描述。","Add a workspace from the DSH sidebar to prefill a task.")}</p>}
+  <div className="wb-composer-footer"><div className="wb-composer-target"><Folder size={16} aria-hidden="true"/><ChoiceSelect label={t("工作区","Workspace")} value={selected} onChange={setTarget} options={[{value:DEFAULT,label:t("个人助手","Personal assistant")},...ctx.workspaces.map(w=>({value:w.id,label:w.title}))]} className="wb-quiet-select"/></div><Button type="button" onClick={submit} size="sm" disabled={disabled}>{t("打开对话","Open conversation")}<ArrowUpRight/></Button></div>
+  {selected===DEFAULT&&<p className="wb-empty wb-onboarding">{t("个人助手可读取你明确授权的近期会话；修改业务文件请选择工作区。","Personal assistant reads only approved conversations. Choose a workspace for file changes.")}</p>}
  </div>
 }
 export function QuickActions(){return <ShortcutLibrary compact/>}

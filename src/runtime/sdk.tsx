@@ -5,6 +5,7 @@ export interface RuntimeValue extends ContextData {
  save: (value:Record<string,unknown>)=>void
  start: (workspaceId?:string,prompt?:string)=>void
  open: (sessionId:string)=>void
+ personal: (prompt?:string)=>void
  preview:boolean
 }
 export const RuntimeContext=React.createContext<RuntimeValue|null>(null)
