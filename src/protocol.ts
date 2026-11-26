@@ -1,7 +1,7 @@
 export type WorkspaceInfo={id:string;title:string}
 export type SessionInfo={id:string;title:string;workspaceId?:string;updatedAt:number;status:"attention"|"running"|"completed"|"idle"}
-export type ContextData={workspaces:WorkspaceInfo[];sessions:SessionInfo[];locale:"zh"|"en"}
-export type Request = {type:"ready"}|{type:"rendered"}|{type:"error";message:string}|{type:"save";value:unknown}|{type:"start";workspaceId?:string;prompt?:string}|{type:"open";sessionId:string}|{type:"personal";prompt?:string}
+export type ContextData={workspaces:WorkspaceInfo[];sessions:SessionInfo[];locale:"zh"|"en";recommendations?:{title:string;description:string;sessionId:string;seq:number}[]}
+export type Request = {type:"ready"}|{type:"rendered"}|{type:"error";message:string}|{type:"save";value:unknown}|{type:"start";workspaceId?:string;prompt?:string}|{type:"open";sessionId:string}|{type:"personal";prompt?:string;recommend?:boolean}
 export function parseRequest(value:unknown,token:string):Request|null {
  if(typeof value!=="object"||value===null)return null
  const m=value as Record<string,unknown>
@@ -12,7 +12,7 @@ export function parseRequest(value:unknown,token:string):Request|null {
   case "error":return typeof m.message==="string"?{type:"error",message:m.message.slice(0,1200)}:null
   case "save":return {type:"save",value:m.value}
   case "start":return (m.workspaceId===undefined||typeof m.workspaceId==="string")&&(m.prompt===undefined||(typeof m.prompt==="string"&&m.prompt.length<=12000))?{type:"start",workspaceId:m.workspaceId,prompt:m.prompt}:null
-  case "personal":return m.prompt===undefined||(typeof m.prompt==="string"&&m.prompt.length<=12000)?{type:"personal",prompt:m.prompt}:null
+  case "personal":return (m.prompt===undefined||(typeof m.prompt==="string"&&m.prompt.length<=12000))&&(m.recommend===undefined||typeof m.recommend==="boolean")?{type:"personal",prompt:m.prompt,recommend:m.recommend}:null
   case "open":return typeof m.sessionId==="string"?{type:"open",sessionId:m.sessionId}:null
   default:return null
  }

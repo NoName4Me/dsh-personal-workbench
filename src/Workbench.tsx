@@ -21,9 +21,9 @@ const NO_CONTEXT:ContextData={workspaces:[],sessions:[],locale:"zh"}
 const NO_STATUSES:ReadonlyMap<string,Status>=new Map()
 function useNoSessionStatus<T>(select:(snapshot:ReadonlyMap<string,Status>)=>T):T{return select(NO_STATUSES)}
 type Mode="home"|"manage"|"edit"|"conversation"
-type Action={type:"start";id?:string;prompt?:string}|{type:"open";id:string}|{type:"personal";prompt?:string}
+type Action={type:"start";id?:string;prompt?:string}|{type:"open";id:string}|{type:"personal";prompt?:string;recommend?:boolean}
 type Chat={sessionId:string;prompt?:string;personal?:boolean;title:string}
-type Scope={kind:"personal"|"workspace";prompt?:string;selected:string[];workspaceId:string}
+type Scope={kind:"personal"|"workspace";prompt?:string;selected:string[];workspaceId:string;recommend?:boolean}
 function download(name:string,text:string){
  const u=URL.createObjectURL(new Blob([text],{type:"application/json"}))
  const a=document.createElement("a");a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)
@@ -61,7 +61,7 @@ export function Workbench({useWorkspaces,useSessions,useSessionStatus=useNoSessi
  const board=state.boards.find(b=>b.id===state.active)!
  const currentStudio=snapshot.builders.filter(x=>x.boardId===board.id).at(-1)?.sessionId??""
  const aiSession=aiSessionOverride??currentStudio
- const internalIds=React.useMemo(()=>new Set([...snapshot.builders.map(x=>x.sessionId),...snapshot.personal.map(x=>x.sessionId),...studioSessionIds(localStorage)]),[snapshot.builders,snapshot.personal])
+ const internalIds=React.useMemo(()=>new Set([...(snapshot.internalIds??[]),...studioSessionIds(localStorage)]),[snapshot.internalIds])
  const context=React.useMemo<ContextData>(()=>{
    const ws=workspaces.map(w=>({id:w.workspaceId,title:w.title||t("unnamed")}))
    const archivedIds=new Set(archived??[])
@@ -73,7 +73,7 @@ export function Workbench({useWorkspaces,useSessions,useSessionStatus=useNoSessi
  const live=published(board)
  const builtin=!!live&&isBuiltin(live.source)
  const canRead=builtin||grant===board.id+":"+live?.id
- const liveContext=React.useMemo(()=>canRead?context:{...NO_CONTEXT,locale:context.locale},[canRead,context])
+ const liveContext=React.useMemo(()=>canRead?{...context,recommendations:builtin?(snapshot.recommendations?.[board.id]??[]).filter(r=>context.sessions.some(s=>s.id===r.sessionId)):[]}: {...NO_CONTEXT,locale:context.locale},[canRead,context,builtin,snapshot.recommendations,board.id])
  const previewContext=React.useMemo(()=>isBuiltin(board.draft)?context:{...NO_CONTEXT,locale:context.locale},[board.draft,context])
  function update(fn:(b:Board)=>Board){return commit(s=>replaceBoard(s,fn(s.boards.find(b=>b.id===s.active)!)))}
  function changeMode(next:Mode){
@@ -85,14 +85,14 @@ export function Workbench({useWorkspaces,useSessions,useSessionStatus=useNoSessi
  function create(template:string,name:string){if(commit(s=>{if(s.boards.length>=MAX_BOARDS)throw new Error(t("boardLimit"));const b=newBoard(name,template);return {...s,active:b.id,boards:[...s.boards,b]}}))changeMode("edit")}
  async function launchAI(){
   if(!request.trim()||aiBusy||!ready)return
-  const generation=++aiGeneration.current,boardId=board.id,sessionId=crypto.randomUUID();setAiBusy(true)
+  const generation=++aiGeneration.current,boardId=board.id,sessionId="session-"+crypto.randomUUID();setAiBusy(true)
   try{
    const grant=await host.action<{cwd:string}>({action:"builder",sessionId,boardId})
    let id:string
    try{id=await createSession({sessionId,cwd:grant.cwd,agentPreset:"personal-workbench-builder"});if(id!==sessionId)throw new Error("DSH did not preserve the bound session identity")}
    catch(e){await host.action({action:"revoke",sessionId}).catch(()=>{});throw e}
    if(generation!==aiGeneration.current){await host.action({action:"revoke",sessionId});return}
-   setAiSessionOverride(id);setStudioPrompt(request.trim());setAiNotice(t("studioDraftReady"))
+   setStudioPrompt(request.trim());await host.action({action:"activate",sessionId:id});setAiSessionOverride(id);setAiNotice(t("studioDraftReady"))
   }catch(e){if(generation===aiGeneration.current)setError(String(e))}
   finally{if(generation===aiGeneration.current)setAiBusy(false)}
  }
@@ -134,7 +134,7 @@ export function Workbench({useWorkspaces,useSessions,useSessionStatus=useNoSessi
     setChat({sessionId:a.id,title:s?.title??t("personalAssistant"),personal});setMode("conversation");return
    }
    if(a.type==="personal"){
-    setScope({kind:"personal",prompt:a.prompt,selected:[],workspaceId:""});return
+    setScope({kind:"personal",prompt:a.prompt,selected:[],workspaceId:"",recommend:a.recommend});return
    }
    if(!a.id){
     setScope({kind:"workspace",prompt:a.prompt,selected:[],workspaceId:""});return
@@ -155,16 +155,16 @@ export function Workbench({useWorkspaces,useSessions,useSessionStatus=useNoSessi
    const prompt=scope.prompt;setScope(null);await perform({type:"start",id:target,prompt});return
   }
   setChatBusy(true)
-  const sessionId=crypto.randomUUID()
+  const sessionId="session-"+crypto.randomUUID()
   try{
    const allowed=new Set(eligibleSources().map(s=>s.id))
    const selected=scope.selected.filter(id=>allowed.has(id))
    if(selected.length!==scope.selected.length)throw new Error(t("missingSession"))
-   const g=await host.action<{cwd:string}>({action:"personal",sessionId,sessionIds:selected,boardId:board.id})
+   const g=await host.action<{cwd:string}>({action:"personal",sessionId,sessionIds:selected,boardId:board.id,allowRecommendations:scope.recommend===true})
    let id:string
    try{id=await createSession({sessionId,cwd:g.cwd,agentPreset:"personal-workbench-personal"});if(id!==sessionId)throw new Error("DSH did not preserve the bound session identity")}
    catch(e){await host.action({action:"revoke",sessionId}).catch(()=>{});throw e}
-   setChat({sessionId:id,prompt:scope.prompt,title:t("personalAssistant"),personal:true});setScope(null);setMode("conversation")
+   await host.action({action:"activate",sessionId:id});setChat({sessionId:id,prompt:scope.prompt,title:t("personalAssistant"),personal:true});setScope(null);setMode("conversation")
   }catch(e){setError(String(e))}
   finally{setChatBusy(false)}
  }
@@ -184,7 +184,7 @@ export function Workbench({useWorkspaces,useSessions,useSessionStatus=useNoSessi
  {(mode==="home"||mode==="conversation")&&<div className="wb-home" style={mode==="conversation"?{display:"none"}:undefined}>
    {!live?<div className="wb-content"><h1>{board.title}</h1><p className="wb-subtitle">{t("unpublished")}</p><Button className="mt-4" onClick={()=>changeMode("edit")}>{t("edit")}</Button></div>:<>
    {!builtin&&<div className="wb-permission"><span>{t("customNotice")}</span><Button size="sm" variant="outline" onClick={()=>{setAction(null);setGrant(canRead?"":board.id+":"+live.id)}}>{canRead?t("revoke"):t("grant")}</Button></div>}
-   <Sandbox key={board.id+":"+live.id+":"+String(canRead)} source={live.source} context={liveContext} data={board.data} preview={false} onSave={data=>{if(JSON.stringify(data)!==JSON.stringify(board.data))update(b=>({...b,data}))}} onStart={(id,prompt)=>requestAction({type:"start",id,prompt})} onPersonal={prompt=>requestAction({type:"personal",prompt})} onOpen={id=>requestAction({type:"open",id})} onStatus={()=>{}}/>
+   <Sandbox key={board.id+":"+live.id+":"+String(canRead)} source={live.source} context={liveContext} data={board.data} preview={false} onSave={data=>{if(JSON.stringify(data)!==JSON.stringify(board.data))update(b=>({...b,data}))}} onStart={(id,prompt)=>requestAction({type:"start",id,prompt})} onPersonal={(prompt,recommend)=>requestAction({type:"personal",prompt,recommend})} onOpen={id=>requestAction({type:"open",id})} onStatus={()=>{}}/>
    </>}
  </div>}
  {mode==="conversation"&&chat&&<div className="wb-full-conversation">{chat.personal&&<div className="wb-personal-scope"><span>{t("personalReadOnly")} · {snapshot.personal.find(x=>x.sessionId===chat.sessionId)?.sessionIds.length??0} {t("approvedSources")}</span><Button variant="ghost" size="sm" onClick={()=>setConfirmation({description:t("revokeSourcesConfirm"),run:()=>{void host.action({action:"revoke",sessionId:chat.sessionId}).then(()=>changeMode("home")).catch(e=>setError(String(e)))}})}>{t("revoke")}</Button></div>}{renderStudio({sessionId:chat.sessionId,prompt:chat.prompt,onPrefilled:()=>setChat(c=>c?{...c,prompt:undefined}:c),onError:setError})}</div>}
@@ -204,7 +204,7 @@ export function Workbench({useWorkspaces,useSessions,useSessionStatus=useNoSessi
 
    </section>
  </div>}
- <Dialog open={!!scope} onOpenChange={v=>{if(!v&&!chatBusy)setScope(null)}}><DialogContent showCloseButton={false}><DialogTitle>{scope?.kind==="personal"?t("personalScopeTitle"):t("chooseWorkspace")}</DialogTitle><DialogDescription>{scope?.kind==="personal"?t("personalScopeHint"):t("workspaceScopeHint")}</DialogDescription>{scope?.kind==="personal"?<div className="wb-source-picker"><div className="wb-sectionbar"><small>{scope.selected.length} {t("approvedSources")}</small><Button variant="ghost" size="sm" disabled={chatBusy} onClick={()=>setScope(s=>s?{...s,selected:s.selected.length?[]:eligibleSources().map(x=>x.id)}:s)}>{scope.selected.length?t("clearSelection"):t("selectAllVisible")}</Button></div>{context.workspaces.map(w=>{const rows=eligibleSources().filter(s=>s.workspaceId===w.id);if(!rows.length)return null;const all=rows.every(s=>scope.selected.includes(s.id));return <section key={w.id} className="wb-source-group"><label><Checkbox aria-label={w.title} disabled={chatBusy} checked={all?true:rows.some(s=>scope.selected.includes(s.id))?"indeterminate":false} onCheckedChange={v=>setScope(old=>old?{...old,selected:v===true?[...new Set([...old.selected,...rows.map(s=>s.id)])]:old.selected.filter(id=>!rows.some(s=>s.id===id))}:old)}/><strong>{w.title}</strong></label>{rows.map(s=><label key={s.id} className="wb-source-row"><Checkbox aria-label={s.title} disabled={chatBusy} checked={scope.selected.includes(s.id)} onCheckedChange={v=>setScope(old=>old?{...old,selected:v===true?[...new Set([...old.selected,s.id])]:old.selected.filter(id=>id!==s.id)}:old)}/><span>{s.title}</span></label>)}</section>})}{!eligibleSources().length&&<p className="wb-empty">{t("noSources")}</p>}</div>:scope&&<ChoiceSelect label={t("workspace")} value={scope.workspaceId} placeholder={t("chooseWorkspace")} disabled={chatBusy} options={context.workspaces.map(w=>({value:w.id,label:w.title}))} onChange={v=>setScope(s=>s?{...s,workspaceId:v}:s)}/>}<DialogFooter><Button variant="outline" disabled={chatBusy} onClick={()=>setScope(null)}>{t("cancel")}</Button><Button disabled={chatBusy||(scope?.kind==="workspace"&&!scope.workspaceId)} onClick={()=>void launchScope()}>{t("start")}</Button></DialogFooter></DialogContent></Dialog>
+ <Dialog open={!!scope} onOpenChange={v=>{if(!v&&!chatBusy)setScope(null)}}><DialogContent showCloseButton={false}><DialogTitle>{scope?.kind==="personal"?t("personalScopeTitle"):t("chooseWorkspace")}</DialogTitle><DialogDescription>{scope?.kind==="personal"?(scope.recommend?t("recommendScopeHint"):t("personalScopeHint")):t("workspaceScopeHint")}</DialogDescription>{scope?.kind==="personal"?<div className="wb-source-picker"><div className="wb-sectionbar"><small>{scope.selected.length} {t("approvedSources")}</small><Button variant="ghost" size="sm" disabled={chatBusy} onClick={()=>setScope(s=>s?{...s,selected:s.selected.length?[]:eligibleSources().map(x=>x.id)}:s)}>{scope.selected.length?t("clearSelection"):t("selectAllVisible")}</Button></div>{context.workspaces.map(w=>{const rows=eligibleSources().filter(s=>s.workspaceId===w.id);if(!rows.length)return null;const all=rows.every(s=>scope.selected.includes(s.id));return <section key={w.id} className="wb-source-group"><label><Checkbox aria-label={w.title} disabled={chatBusy} checked={all?true:rows.some(s=>scope.selected.includes(s.id))?"indeterminate":false} onCheckedChange={v=>setScope(old=>old?{...old,selected:v===true?[...new Set([...old.selected,...rows.map(s=>s.id)])]:old.selected.filter(id=>!rows.some(s=>s.id===id))}:old)}/><strong>{w.title}</strong></label>{rows.map(s=><label key={s.id} className="wb-source-row"><Checkbox aria-label={s.title} disabled={chatBusy} checked={scope.selected.includes(s.id)} onCheckedChange={v=>setScope(old=>old?{...old,selected:v===true?[...new Set([...old.selected,s.id])]:old.selected.filter(id=>id!==s.id)}:old)}/><span>{s.title}</span></label>)}</section>})}{!eligibleSources().length&&<p className="wb-empty">{t("noSources")}</p>}</div>:scope&&<ChoiceSelect label={t("workspace")} value={scope.workspaceId} placeholder={t("chooseWorkspace")} disabled={chatBusy} options={context.workspaces.map(w=>({value:w.id,label:w.title}))} onChange={v=>setScope(s=>s?{...s,workspaceId:v}:s)}/>}<DialogFooter><Button variant="outline" disabled={chatBusy} onClick={()=>setScope(null)}>{t("cancel")}</Button><Button disabled={chatBusy||(scope?.kind==="workspace"&&!scope.workspaceId)||(scope?.recommend&&!scope.selected.length)} onClick={()=>void launchScope()}>{t("start")}</Button></DialogFooter></DialogContent></Dialog>
  <ConfirmDialog open={!!action||!!confirmation} title={t("confirmAction")} description={confirmation?.description??(action?.type==="open"?context.sessions.find(s=>s.id===action.id)?.title??"":action?.prompt||t("start"))} cancel={t("cancel")} confirm={t("confirm")} destructive={confirmation?.destructive} onCancel={()=>{setAction(null);setConfirmation(null)}} onConfirm={()=>{if(confirmation){setConfirmation(null);confirmation.run()}else if(action)void perform(action)}}/>
  </div></PortalContext.Provider>
 }

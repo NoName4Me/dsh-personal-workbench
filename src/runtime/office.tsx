@@ -46,7 +46,9 @@ export function Suggestions(){
  // The ranking is deterministic and uses actual host activity, never invented
  // sessions or a hidden model call. Session contents are not read.
  const recent=ctx.sessions.slice(0,12)
- const next:Suggestion[]=[]
+ const semantic=ctx.recommendations??[]
+ const refresh=()=>ctx.personal(t("请阅读我授权的近期业务会话，找出最多三项有具体依据、值得下一步开展的工作建议。不要仅根据标题推断，先读取实际消息，并调用 personal_suggest 将建议及来源事件保存到工作台。","Read the approved business conversations. Identify up to three actionable next steps with concrete evidence; read actual messages, then call personal_suggest to save recommendations with source events."),true)
+ const next:Suggestion[]=semantic.map((r,i)=>({id:"semantic:"+i,title:r.title,detail:r.description,Icon:Sparkles,run:()=>ctx.open(r.sessionId)}))
  const attention=recent.find(s=>s.status==="attention")
  const completed=recent.find(s=>s.status==="completed")
  const running=recent.find(s=>s.status==="running")
@@ -62,6 +64,6 @@ export function Suggestions(){
  }
  const last=recent.find(s=>!next.some(x=>x.id===s.id))
  if(last){const lower=last.title.toLocaleLowerCase();const review=/报告|汇报|材料|方案|文档|report|document|proposal/.test(lower);const data=/数据|表格|核对|分析|excel|spreadsheet|data/.test(lower);const title=review?t("检查材料是否达到交付要求","Check deliverable readiness"):data?t("复核分析与数据口径","Verify analysis and data definitions"):running?.id===last.id?t("查看正在进行的工作","Check ongoing work"):t("继续上次工作","Resume recent work");next.push({id:last.id,title,detail:last.title,Icon:review?FileCheck:data?GitCompare:Clock,run:()=>ctx.open(last.id)})}
- if(!next.length)return <section className="wb-section"><div className="wb-section-heading"><h2>{t("猜你想做","Suggested for you")}</h2></div><p className="wb-empty wb-suggestion-empty">{t("开始使用 DSH 后，这里会根据近期会话与任务状态推荐下一步。","Suggestions appear here when you start using DSH.")}</p></section>
- return <section className="wb-section"><div className="wb-section-heading"><div><h2>{t("猜你想做","Suggested for you")}</h2><p>{t("根据近期会话标题与任务状态推荐","Based on recent conversation titles and status")}</p></div><Sparkles size={16} className="wb-row-icon"/></div><div className="wb-suggestions">{next.slice(0,3).map(({id,title,detail,Icon,run})=><Button key={id} variant="outline" className="wb-suggestion" onClick={run}><Icon/><span><strong>{title}</strong><small>{detail}</small></span><ArrowRight className="wb-row-arrow"/></Button>)}</div></section>
+ if(!next.length)return <section className="wb-section"><div className="wb-section-heading"><h2>{t("猜你想做","Suggested for you")}</h2><Button variant="outline" size="sm" disabled={!ctx.sessions.some(s=>s.workspaceId)} onClick={refresh}><Sparkles/>{t("生成建议","Generate suggestions")}</Button></div><p className="wb-empty wb-suggestion-empty">{t("开始使用 DSH 后，这里会根据近期会话与任务状态推荐下一步。","Suggestions appear here when you start using DSH.")}</p></section>
+ return <section className="wb-section"><div className="wb-section-heading"><div><h2>{t("猜你想做","Suggested for you")}</h2><p>{semantic.length?t("AI 建议基于已授权的会话内容，点击查看来源","AI suggestions use approved conversation content; open the source") : t("基于活动状态推荐，可按需生成内容建议","Activity-based suggestions; generate content-aware advice on demand")}</p></div><Button variant="outline" size="sm" disabled={!ctx.sessions.some(s=>s.workspaceId)} onClick={refresh}><Sparkles/>{t("生成建议","Generate suggestions")}</Button></div><div className="wb-suggestions">{next.slice(0,3).map(({id,title,detail,Icon,run})=><Button key={id} variant="outline" className="wb-suggestion" onClick={run}><Icon/><span><strong>{title}</strong><small>{detail}</small></span><ArrowRight className="wb-row-arrow"/></Button>)}</div></section>
 }

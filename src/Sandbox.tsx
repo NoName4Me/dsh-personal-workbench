@@ -7,7 +7,7 @@ import css from "./compiled.css?text"
 const safeScript=(s:string)=>s.replace(/<\/script/gi,"<\\/script")
 const safeStyle=(s:string)=>s.replace(/<\/style/gi,"<\\/style")
 const keys=["bg","fg","muted","muted-fg","border","primary","primary-fg","popover","radius-xs","radius-sm","radius-md","font"] as const
-type Props={source:string;context:ContextData;data:Record<string,unknown>;preview:boolean;onSave:(value:Record<string,unknown>)=>void;onStart:(id?:string,prompt?:string)=>void;onOpen:(id:string)=>void;onPersonal:(prompt?:string)=>void;onStatus:(status:"loading"|"ready"|"error",detail?:string)=>void}
+type Props={source:string;context:ContextData;data:Record<string,unknown>;preview:boolean;onSave:(value:Record<string,unknown>)=>void;onStart:(id?:string,prompt?:string)=>void;onOpen:(id:string)=>void;onPersonal:(prompt?:string,recommend?:boolean)=>void;onStatus:(status:"loading"|"ready"|"error",detail?:string)=>void}
 export function Sandbox(props:Props){
  const frame=React.useRef<HTMLIFrameElement>(null)
  const latest=React.useRef(props);latest.current=props
@@ -48,7 +48,7 @@ export function Sandbox(props:Props){
    if(request.type==="save"){if(dataOK(request.value))p.onSave(request.value);else notify("error","Local data exceeds the size limit");return}
    if(p.preview)return
    if(request.type==="start"){if(request.workspaceId!==undefined&&!p.context.workspaces.some(w=>w.id===request.workspaceId))return;p.onStart(request.workspaceId,request.prompt)}
-   if(request.type==="personal")p.onPersonal(request.prompt)
+   if(request.type==="personal")p.onPersonal(request.prompt,request.recommend)
    if(request.type==="open"&&p.context.sessions.some(s=>s.id===request.sessionId))p.onOpen(request.sessionId)
   }
   window.addEventListener("message",receive)

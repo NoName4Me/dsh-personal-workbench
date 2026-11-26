@@ -1,9 +1,10 @@
 import React from "react"
 import { initialState } from "./templates"
+import { studioSessionIds } from "./ai"
 import { loadState, readState, type State } from "./model"
 export type Candidate={id:string;boardId:string;sessionId:string;source:string}
 export type Recommendation={title:string;description:string;sessionId:string;seq:number}
-export type Snapshot={revision:number;state?:State|null;unchanged?:boolean;builders:{sessionId:string;boardId:string}[];personal:{sessionId:string;sessionIds:string[]}[];pending:Candidate[];recommendations?:Record<string,Recommendation[]>}
+export type Snapshot={revision:number;state?:State|null;unchanged?:boolean;builders:{sessionId:string;boardId:string}[];personal:{sessionId:string;sessionIds:string[];active:boolean}[];internalIds?:string[];pending:Candidate[];recommendations?:Record<string,Recommendation[]>}
 type Carrier=(url:string|URL,init:RequestInit)=>Promise<Response>
 export async function hostRequest<T>(body?:Record<string,unknown>,revision?:number,signal?:AbortSignal):Promise<T>{
  const url=new URL("api/personal-workbench",document.baseURI)
@@ -21,15 +22,16 @@ export function useHostStore(){
  const [snapshot,setSnapshot]=React.useState<Snapshot>(EMPTY)
  const [ready,setReady]=React.useState(false),[error,setError]=React.useState("")
  const current=React.useRef(state),server=React.useRef(EMPTY),tail=React.useRef<Promise<void>>(Promise.resolve())
- const generation=React.useRef(0),busy=React.useRef(0),loaded=React.useRef(false)
+ const generation=React.useRef(0),busy=React.useRef(0),actions=React.useRef(0),loaded=React.useRef(false)
  const [retry,reload]=React.useReducer(x=>x+1,0)
  const accept=React.useCallback((next:Snapshot,applyState=true)=>{
   const previous=server.current
   if(next.revision<previous.revision)return
   const merged={...next,state:next.unchanged?previous.state:next.state}
-  if(merged.state)merged.state=readState(merged.state)
-  server.current=merged;setSnapshot(merged)
-  if(applyState&&merged.state){current.current=merged.state;setState(merged.state)}
+  if(merged.state&&!next.unchanged)merged.state=readState(merged.state)
+  const same=next.revision===previous.revision&&JSON.stringify(next.pending)===JSON.stringify(previous.pending)&&JSON.stringify(next.recommendations)===JSON.stringify(previous.recommendations)
+  server.current=merged;if(!same)setSnapshot(merged)
+  if(applyState&&merged.state&&(!next.unchanged||current.current!==merged.state)){current.current=merged.state;setState(merged.state)}
  },[])
  React.useEffect(()=>{
   const controller=new AbortController()
@@ -40,7 +42,7 @@ export function useHostStore(){
     if(controller.signal.aborted)return
     if(next.state===null){
      const legacy=loadState(localStorage,initialState)
-     try{next=await hostRequest<Snapshot>({action:"save",revision:next.revision,state:legacy},undefined,controller.signal)}
+     try{next=await hostRequest<Snapshot>({action:"save",revision:next.revision,state:legacy,legacyIds:[...studioSessionIds(localStorage)]},undefined,controller.signal)}
      catch(e){const existing=await hostRequest<Snapshot>(undefined,undefined,controller.signal);if(!existing.state)throw e;next=existing}
     }
     if(controller.signal.aborted)return
@@ -49,13 +51,15 @@ export function useHostStore(){
    }catch(e){if(!controller.signal.aborted)setError(String(e))}
   }
   void open()
+  let reading=false
   const timer=window.setInterval(async()=>{
-   if(!loaded.current||busy.current||controller.signal.aborted)return
+   if(reading||!loaded.current||busy.current||controller.signal.aborted)return
+   reading=true
    const epoch=generation.current,revision=server.current.revision
    try{
     const next=await hostRequest<Snapshot>(undefined,revision,controller.signal)
     if(!controller.signal.aborted&&!busy.current&&generation.current===epoch)accept(next)
-   }catch(e){if(!controller.signal.aborted)setError(String(e))}
+   }catch(e){if(!controller.signal.aborted)setError(String(e))}finally{reading=false}
   },1000)
   return ()=>{controller.abort();window.clearInterval(timer)}
  },[accept,retry])
@@ -66,7 +70,7 @@ export function useHostStore(){
   return result
  }
  function commit(fn:(s:State)=>State):boolean{
-  if(!loaded.current){setError("Workbench storage is not ready");return false}
+  if(!loaded.current||actions.current){setError("Workbench storage is busy or unavailable; retry after the current operation");return false}
   try{
    const next=readState(fn(current.current)),epoch=generation.current
    current.current=next;setState(next);setError("")
@@ -79,12 +83,13 @@ export function useHostStore(){
   }catch(e){setError(String(e));return false}
  }
  async function action<T>(body:Record<string,unknown>):Promise<T>{
-  return queue(async()=>{
+  actions.current++
+  try{return await queue(async()=>{
    if(!loaded.current)throw new Error("Workbench storage is not ready")
    const result=await hostRequest<T>(body)
-   accept(await hostRequest<Snapshot>(),busy.current===1)
+   accept(await hostRequest<Snapshot>())
    return result
-  })
+  })}finally{actions.current--}
  }
  return {state,snapshot,ready,error,setError,current,commit,action,reload}
 }

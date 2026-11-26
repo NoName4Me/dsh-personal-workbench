@@ -10,21 +10,22 @@ export function apply(ctx){
   path:PATH,methods:["GET","POST"],requestBody:"buffered",
   fetch:async request=>{
    try{
-    if(request.method==="GET"){const s=store.snapshot();const revision=new URL(request.url).searchParams.get("revision");if(revision!==null&&Number(revision)===s.revision){delete s.state;s.unchanged=true}return Response.json(s,{headers:{"cache-control":"no-store"}})}
+    if(request.method==="GET"){const s=store.snapshot();for(const [id,rows] of Object.entries(s.recommendations)){const allowed=new Set(visibleSources(ctx,store,rows.map(x=>x.sessionId)).map(x=>x.id));s.recommendations[id]=rows.filter(x=>allowed.has(x.sessionId)).map(({generatedBy,...x})=>x)}const revision=new URL(request.url).searchParams.get("revision");if(revision!==null&&Number(revision)===s.revision){delete s.state;s.unchanged=true}return Response.json(s,{headers:{"cache-control":"no-store"}})}
     if(!request.headers.get("content-type")?.startsWith("application/json"))return new Response("Expected JSON",{status:415})
     const text=await request.text()
     if(text.length>36_000_000)return new Response("Request too large",{status:413})
     const body=JSON.parse(text)
     let value
     switch(body.action){
-     case "save":value=store.save(body.revision,body.state);break
+     case "save":value=store.save(body.revision,body.state,body.legacyIds);break
      case "builder":value=store.bind(body.sessionId,{kind:"builder",boardId:body.boardId});break
      case "personal":{
       if(!Array.isArray(body.sessionIds)||body.sessionIds.length>100||body.sessionIds.some(id=>typeof id!=="string"))throw new Error("Invalid source selection")
       const ids=[...new Set(body.sessionIds)]
       if(visibleSources(ctx,store,ids).length!==ids.length)throw new Error("Some selected sessions are no longer available")
-      value=store.bind(body.sessionId,{kind:"personal",sources:ids});break
+      value=store.bind(body.sessionId,{kind:"personal",sources:ids,boardId:body.boardId,allowRecommendations:body.allowRecommendations===true});break
      }
+     case "activate":value=store.activate(body.sessionId);break
      case "revoke":value=store.revoke(body.sessionId);break
      case "preview":value=store.acknowledge(body);break
      default:return new Response("Unknown action",{status:400})
